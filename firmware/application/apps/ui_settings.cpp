@@ -264,9 +264,9 @@ SetUIView::SetUIView(NavigationView& nav) {
 	}
 
 	checkbox_speaker.on_select = [this](Checkbox&, bool v) {
-    		if (!v) audio::output::speaker_mute();		//Just mute audio if speaker is disabled
+    	if (!v) audio::output::speaker_mute();		//Just mute audio if speaker is disabled
 
-			persistent_memory::set_config_speaker(v);	//Store Speaker status
+		persistent_memory::set_config_speaker(v);	//Store Speaker status
 
         StatusRefreshMessage message { };				//Refresh status bar with/out speaker
         EventDispatcher::send_message(message);
@@ -500,7 +500,7 @@ SettingsMenuView::SettingsMenuView(NavigationView& nav) {
 		{ "Touchscreen",	ui::Color::dark_cyan(), &bitmap_icon_options_touch,		[&nav](){ nav.push<TouchCalibrationView>(); } },
 		//{ "Play dead",	   ui::Color::dark_cyan(), &bitmap_icon_playdead,		  [&nav](){ nav.push<SetPlayDeadView>(); } }
 	});
-	set_max_rows(2); // allow wider buttons
+	set_max_rows(1); // allow wider buttons
 }
 
 } /* namespace ui */

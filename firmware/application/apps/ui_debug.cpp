@@ -341,24 +341,24 @@ DebugPeripheralsMenuView::DebugPeripheralsMenuView(NavigationView& nav) {
 			[](const size_t register_number) { return audio::debug::reg_read(register_number); }
 		); } },
 	});
-		set_max_rows(2); // allow wider buttons
+		set_max_rows(1); // allow wider buttons
 }
 
 /* DebugMenuView *********************************************************/
 
 DebugMenuView::DebugMenuView(NavigationView& nav) {
 	if (portapack::persistent_memory::config_backbutton()) add_items({
-		{ "..",				ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
+		{ "..",				ui::Color::light_grey(),&bitmap_icon_previous,		[&nav](){ nav.pop(); } },
 		});
 	add_items({
-		{ "Memory", 		ui::Color::dark_cyan(),	&bitmap_icon_memory,	[&nav](){ nav.push<DebugMemoryView>(); } },
-		//{ "Radio State",	ui::Color::white(),	nullptr,	[&nav](){ nav.push<NotImplementedView>(); } },
-		{ "SD Card",		ui::Color::dark_cyan(),	&bitmap_icon_sdcard,	[&nav](){ nav.push<SDCardDebugView>(); } },
+		{ "Memory", 		ui::Color::dark_cyan(),	&bitmap_icon_memory,		[&nav](){ nav.push<DebugMemoryView>(); } },
+		//{ "Radio State",	ui::Color::white(),		nullptr,					[&nav](){ nav.push<NotImplementedView>(); } },
+		{ "SD Card",		ui::Color::dark_cyan(),	&bitmap_icon_sdcard,		[&nav](){ nav.push<SDCardDebugView>(); } },
 		{ "Peripherals",	ui::Color::dark_cyan(),	&bitmap_icon_peripherals,	[&nav](){ nav.push<DebugPeripheralsMenuView>(); } },
 		{ "Temperature",	ui::Color::dark_cyan(),	&bitmap_icon_temperature,	[&nav](){ nav.push<TemperatureView>(); } },
-		{ "Controls",		ui::Color::dark_cyan(),	&bitmap_icon_controls,	[&nav](){ nav.push<DebugControlsView>(); } },
+		{ "Controls",		ui::Color::dark_cyan(),	&bitmap_icon_controls,		[&nav](){ nav.push<DebugControlsView>(); } },
 	});
-	set_max_rows(2); // allow wider buttons
+	set_max_rows(1); // allow wider buttons
 }
 
 /*DebugLCRView::DebugLCRView(NavigationView& nav, std::string lcr_string) {

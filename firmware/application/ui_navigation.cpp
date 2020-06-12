@@ -378,8 +378,8 @@ void NavigationView::focus() {
 
 ReceiversMenuView::ReceiversMenuView(NavigationView& nav) {
 	if (portapack::persistent_memory::config_backbutton()) add_items({
-		{ "..",				ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
-		});
+		{ "..",			ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
+	});
 	add_items({
 		{ "ADS-B", 		ui::Color::green(),		&bitmap_icon_adsb,		[&nav](){ nav.push<ADSBRxView>(); }, },
 		{ "ACARS", 		ui::Color::yellow(),	&bitmap_icon_adsb,		[&nav](){ nav.push<ACARSAppView>(); }, },
@@ -467,16 +467,16 @@ void SystemMenuView::hackrf_mode(NavigationView& nav) {
 
 SystemMenuView::SystemMenuView(NavigationView& nav) {
 	add_items({
-		//{ "Play dead",				ui::Color::red(),		&bitmap_icon_playdead,	[&nav](){ nav.push<PlayDeadView>(); } },
-		{ "Receive", 	ui::Color::cyan(),		&bitmap_icon_receivers,	[&nav](){ nav.push<ReceiversMenuView>(); } },
+		//{ "Play dead",	ui::Color::red(),			&bitmap_icon_playdead,	[&nav](){ nav.push<PlayDeadView>(); } },
+		{ "Receive", 	ui::Color::cyan(),			&bitmap_icon_receivers,	[&nav](){ nav.push<ReceiversMenuView>(); } },
 		{ "Transmit", 	ui::Color::cyan(),			&bitmap_icon_transmit,	[&nav](){ nav.push<TransmittersMenuView>(); } },
 		{ "Capture",	ui::Color::red(),			&bitmap_icon_capture,	[&nav](){ nav.push<CaptureAppView>(); } },
-		{ "Replay",		ui::Color::green(),		&bitmap_icon_replay,	[&nav](){ nav.push<ReplayAppView>(); } },
+		{ "Replay",		ui::Color::green(),			&bitmap_icon_replay,	[&nav](){ nav.push<ReplayAppView>(); } },
 		{ "Calls",		ui::Color::yellow(),	    &bitmap_icon_search,	[&nav](){ nav.push<SearchView>(); } },
 		{ "Scanner",	ui::Color::yellow(),		&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView>(); } },
-		{ "Tools",		ui::Color::cyan(),	&bitmap_icon_utilities,	[&nav](){ nav.push<UtilitiesMenuView>(); } },
+		{ "Tools",		ui::Color::cyan(),			&bitmap_icon_utilities,	[&nav](){ nav.push<UtilitiesMenuView>(); } },
 		{ "Options", 	ui::Color::cyan(),			&bitmap_icon_setup,	  	[&nav](){ nav.push<SettingsMenuView>(); } },
-		{ "Debug",		ui::Color::light_grey(),		&bitmap_icon_debug,   				[&nav](){ nav.push<DebugMenuView>(); } },
+		{ "Debug",		ui::Color::light_grey(),	&bitmap_icon_debug,   	[&nav](){ nav.push<DebugMenuView>(); } },
 		{ "HackRF", 	ui::Color::cyan(),			&bitmap_icon_hackrf,	[this, &nav](){ hackrf_mode(nav); } },
 		//{ "About", 		ui::Color::cyan(),			nullptr,				[&nav](){ nav.push<AboutView>(); } }
 	});
