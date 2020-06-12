@@ -238,5 +238,4 @@ bool BtnGridView::on_touch(const TouchEvent event) {
 	return false;
 }
 
-
 } /* namespace ui */
