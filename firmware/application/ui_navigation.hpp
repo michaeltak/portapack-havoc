@@ -132,7 +132,7 @@ private:
 
 	ImageButton button_speaker {
  		{ 17 * 8, 0, 2 * 8, 1 * 16 },
- 		&bitmap_icon_speaker,
+ 		&bitmap_icon_speaker_mute,
  		Color::light_grey(),
  		Color::dark_grey()
  	};

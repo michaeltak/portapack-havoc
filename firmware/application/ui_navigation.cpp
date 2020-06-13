@@ -210,11 +210,13 @@ void SystemStatusView::on_speaker() {
  	{
  		portapack::set_speaker_mode(true);
  		button_speaker.set_foreground(Color::green());
+		button_speaker.set_bitmap(&bitmap_icon_speaker);
  	}
  	else
  	{
  		portapack::set_speaker_mode(false);
  		button_speaker.set_foreground(Color::light_grey());
+		button_speaker.set_bitmap(&bitmap_icon_speaker_mute);
  	}
 
  }
@@ -379,12 +381,12 @@ void NavigationView::focus() {
 ReceiversMenuView::ReceiversMenuView(NavigationView& nav) {
 	if (portapack::persistent_memory::config_backbutton()) add_items({
 		{ "..",			ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
-	});
+		});
 	add_items({
 		{ "ADS-B", 		ui::Color::green(),		&bitmap_icon_adsb,		[&nav](){ nav.push<ADSBRxView>(); }, },
 		{ "ACARS", 		ui::Color::yellow(),	&bitmap_icon_adsb,		[&nav](){ nav.push<ACARSAppView>(); }, },
 		{ "AIS Boats",	ui::Color::green(),		&bitmap_icon_ais,		[&nav](){ nav.push<AISAppView>(); } },
-		{ "AFSK", 		ui::Color::yellow(),	&bitmap_icon_modem,	[&nav](){ nav.push<AFSKRxView>(); } },
+		{ "AFSK", 		ui::Color::yellow(),	&bitmap_icon_modem,		[&nav](){ nav.push<AFSKRxView>(); } },
 		{ "BTLE",		ui::Color::yellow(),	&bitmap_icon_btle,		[&nav](){ nav.push<BTLERxView>(); } },
 		{ "NRF", 		ui::Color::yellow(),	&bitmap_icon_nrf,		[&nav](){ nav.push<NRFRxView>(); } }, 
 		{ "Audio", 		ui::Color::green(),		&bitmap_icon_speaker,	[&nav](){ nav.push<AnalogAudioView>(); } },
@@ -393,15 +395,7 @@ ReceiversMenuView::ReceiversMenuView(NavigationView& nav) {
 		{ "POCSAG", 	ui::Color::green(),		&bitmap_icon_pocsag,	[&nav](){ nav.push<POCSAGAppView>(); } },
 		{ "Radiosnde", 	ui::Color::yellow(),	&bitmap_icon_sonde,		[&nav](){ nav.push<SondeView>(); } },
 		{ "TPMS Cars", 	ui::Color::green(),		&bitmap_icon_tpms,		[&nav](){ nav.push<TPMSAppView>(); } },
-		/*{ "APRS", 		ui::Color::dark_grey(),	&bitmap_icon_aprs,		[&nav](){ nav.push<NotImplementedView>(); } },
-		{ "DMR", 		ui::Color::dark_grey(),	&bitmap_icon_dmr,		[&nav](){ nav.push<NotImplementedView>(); } },
-		{ "SIGFOX", 	ui::Color::dark_grey(),	&bitmap_icon_fox,		[&nav](){ nav.push<NotImplementedView>(); } }, // SIGFRXView
-		{ "LoRa", 		ui::Color::dark_grey(),	&bitmap_icon_lora,		[&nav](){ nav.push<NotImplementedView>(); } },
-		{ "SSTV", 		ui::Color::dark_grey(), &bitmap_icon_sstv,		[&nav](){ nav.push<NotImplementedView>(); } },
-		{ "TETRA", 		ui::Color::dark_grey(),	&bitmap_icon_tetra,		[&nav](){ nav.push<NotImplementedView>(); } },*/
 	});
-	
-	//set_highlighted(4);		// Default selection is "Audio"
 }
 
 /* TransmittersMenuView **************************************************/
@@ -429,7 +423,6 @@ TransmittersMenuView::TransmittersMenuView(NavigationView& nav) {
 		{ "SSTV", 			ui::Color::green(), 	&bitmap_icon_sstv,		[&nav](){ nav.push<SSTVTXView>(); } },
 		{ "TEDI/LCR",		ui::Color::yellow(), 	&bitmap_icon_lcr,		[&nav](){ nav.push<LCRView>(); } },
 		{ "TouchTune",		ui::Color::yellow(),	&bitmap_icon_remote,	[&nav](){ nav.push<TouchTunesView>(); } },
-		//{ "Remote",			ui::Color::dark_grey(),	&bitmap_icon_remote,	[&nav](){ nav.push<RemoteView>(); } },
 	});
 }
 
@@ -443,7 +436,6 @@ UtilitiesMenuView::UtilitiesMenuView(NavigationView& nav) {
 		//{ "Test app", 		ui::Color::dark_grey(),	nullptr,				[&nav](){ nav.push<TestView>(); } },
 		{ "Freq manager",	ui::Color::green(), 	&bitmap_icon_freqman,		[&nav](){ nav.push<FrequencyManagerView>(); } },
  		{ "File manager", 	ui::Color::yellow(),	&bitmap_icon_dir,			[&nav](){ nav.push<FileManagerView>(); } },
- 		//{ "Notepad",		ui::Color::dark_grey(),	&bitmap_icon_notepad,		[&nav](){ nav.push<NotImplementedView>(); } },
  		{ "Signal gen", 	ui::Color::green(), 	&bitmap_icon_cwgen,			[&nav](){ nav.push<SigGenView>(); } },
  		//{ "Tone search",	ui::Color::dark_grey(), nullptr,					[&nav](){ nav.push<ToneSearchView>(); } },
  		{ "Wave viewer",	ui::Color::yellow(),		&bitmap_icon_soundboard,	[&nav](){ nav.push<ViewWavView>(); } },
@@ -480,8 +472,8 @@ SystemMenuView::SystemMenuView(NavigationView& nav) {
 		{ "HackRF", 	ui::Color::cyan(),			&bitmap_icon_hackrf,	[this, &nav](){ hackrf_mode(nav); } },
 		//{ "About", 		ui::Color::cyan(),			nullptr,				[&nav](){ nav.push<AboutView>(); } }
 	});
-	set_max_rows(2); // allow wider buttons
-	//set_highlighted(1);		// Startup selection
+	set_max_rows(2); 	// allow wider buttons
+	//set_highlighted(1);	// Startup selection
 }
 
 /* SystemView ************************************************************/
