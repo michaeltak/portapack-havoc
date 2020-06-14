@@ -48,19 +48,12 @@ double ui::WhipCalcView::get_decimals(double num, int16_t mult, bool round) {
 
 void WhipCalcView::update_result() {
 	double length, calclength, divider;
-	
 	divider = ((double)options_type.selected_index_value() / 8.0);
-	
-	// Metric
-	length = (speed_of_light_mps / (double)field_frequency.value()) * divider;
-	
-	auto m = to_string_dec_int((int)length, 2);
-	
-	calclength = get_decimals(length,100);				//cm
-
+	length = (speed_of_light_mps / (double)field_frequency.value()) * divider; 	// Metric
+	auto m = to_string_dec_int((int)length, 2);									//m
+	calclength = get_decimals(length,100);										//cm
 	auto cm = to_string_dec_int(int(calclength), 2);
-	auto mm = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);
-	
+	auto mm = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);		//mm
 	text_result_metric.set(m + "m " + cm + "." + mm + "cm");
 
 	// ANT500 elements for crude adjustment
@@ -72,23 +65,15 @@ void WhipCalcView::update_result() {
 		text_result_ant500.set("-");
 	}
 
-	// Imperial
-	calclength = (speed_of_light_fps / (double)field_frequency.value()) * divider;
-
-	auto feet = to_string_dec_int(int(calclength), 3);
-
-	calclength = get_decimals(calclength,12);				//inches
-
+	calclength = (speed_of_light_fps / (double)field_frequency.value()) * divider;	// Imperial
+	auto feet = to_string_dec_int(int(calclength), 3);								//feet
+	calclength = get_decimals(calclength,12);										//inches
 	auto inch = to_string_dec_int(int(calclength), 2);
-	auto inch_c = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);
-
+	auto inch_c = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);		//inch decimal
 	text_result_imperial.set(feet + "ft " + inch + "." + inch_c + "in");
 }
 
-WhipCalcView::WhipCalcView(
-	NavigationView& nav
-) {
-
+WhipCalcView::WhipCalcView(NavigationView& nav) {
 	add_children({
 		&labels,
 		&field_frequency,
@@ -103,7 +88,6 @@ WhipCalcView::WhipCalcView(
 		this->update_result();
 	};
 	options_type.set_selected_index(2);		// Quarter wave
-	
 	field_frequency.set_value(transmitter_model.tuning_frequency());
 	field_frequency.set_step(500000);		// 500kHz step
 	field_frequency.on_change = [this](rf::Frequency) {
@@ -121,7 +105,6 @@ WhipCalcView::WhipCalcView(
 	button_exit.on_select = [this, &nav](Button&) {
 		nav.pop();
 	};
-	
 	update_result();
 }
 
