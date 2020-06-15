@@ -228,7 +228,6 @@ bool BtnGridView::on_touch(const TouchEvent event) {
 				if( menu_items[highlighted_item].on_select ) 
 					menu_items[highlighted_item].on_select();
 				return true;
-
 			default:
 				return false;
 			}
