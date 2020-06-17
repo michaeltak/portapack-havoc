@@ -465,7 +465,7 @@ SystemMenuView::SystemMenuView(NavigationView& nav) {
 		{ "Capture",	ui::Color::red(),			&bitmap_icon_capture,	[&nav](){ nav.push<CaptureAppView>(); } },
 		{ "Replay",		ui::Color::green(),			&bitmap_icon_replay,	[&nav](){ nav.push<ReplayAppView>(); } },
 		{ "Calls",		ui::Color::yellow(),	    &bitmap_icon_search,	[&nav](){ nav.push<SearchView>(); } },
-		{ "Scanner",	ui::Color::yellow(),		&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView>(); } },
+		{ "Scanners",	ui::Color::green(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerMenuView>(); } },
 		{ "Tools",		ui::Color::cyan(),			&bitmap_icon_utilities,	[&nav](){ nav.push<UtilitiesMenuView>(); } },
 		{ "Options", 	ui::Color::cyan(),			&bitmap_icon_setup,	  	[&nav](){ nav.push<SettingsMenuView>(); } },
 		{ "Debug",		ui::Color::light_grey(),	&bitmap_icon_debug,   	[&nav](){ nav.push<DebugMenuView>(); } },
@@ -474,6 +474,21 @@ SystemMenuView::SystemMenuView(NavigationView& nav) {
 	});
 	set_max_rows(2); 	// allow wider buttons
 	//set_highlighted(1);	// Startup selection
+}
+
+/* Scanner options by alain00091 ****************************************/
+
+ScannerMenuView::ScannerMenuView(NavigationView& nav) {
+	if (portapack::persistent_memory::config_backbutton()) add_items({
+		{ "..",				ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
+		});
+	add_items({
+		{ "Scan AM",	ui::Color::yellow(),		&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_AM>(); } },
+		{ "Scan NFM",	ui::Color::cyan(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_NFM>(); } },
+		{ "Scan FM",	ui::Color::red(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_FM>(); } },
+	});
+	set_max_rows(1); 		// allow wider buttons
+	set_highlighted(1);		// Startup selection ( same as before)
 }
 
 /* SystemView ************************************************************/
