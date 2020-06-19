@@ -98,11 +98,13 @@ bool speaker_mode { false };
  	speaker_mode = v;
  	if (speaker_mode)
  	{
+		audio::output::mute();   //Mute headphones
  		audio::output::speaker_unmute();
  	}
  	else
  	{
- 		audio::output::speaker_mute();
+		audio::output::speaker_mute();
+		audio::output::unmute(); //Unmute headphones
  	}
  }
 

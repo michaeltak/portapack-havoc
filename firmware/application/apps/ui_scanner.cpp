@@ -251,7 +251,7 @@ ScannerView_NFM::ScannerView_NFM(
 	
 	audio::output::start();
 	
-	audio::output::mute();
+	//audio::output::mute();
 	baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
 	receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
 	receiver_model.set_sampling_rate(3072000);
@@ -259,7 +259,7 @@ ScannerView_NFM::ScannerView_NFM(
 	receiver_model.enable();
 	receiver_model.set_squelch_level(0);
 	receiver_model.set_nbfm_configuration(field_bw.selected_index());
-	audio::output::unmute();
+	//audio::output::unmute();
 	
 	// TODO: Scanning thread here
 	scan_thread = std::make_unique<ScannerThread>(frequency_list);
@@ -371,7 +371,7 @@ ScannerView_FM::ScannerView_FM(
 	};
 	
 	audio::output::start();
-	audio::output::mute();
+	//audio::output::mute();
 	
 	baseband::run_image(portapack::spi_flash::image_tag_wfm_audio);
 	receiver_model.set_modulation(ReceiverModel::Mode::WidebandFMAudio);
@@ -382,7 +382,7 @@ ScannerView_FM::ScannerView_FM(
 	receiver_model.set_squelch_level(0);
 	receiver_model.set_wfm_configuration(field_bw.selected_index());
 	
-	audio::output::unmute();
+	//audio::output::unmute();
 	
 	// TODO: Scanning thread here
 	scan_thread = std::make_unique<ScannerThread>(frequency_list);
@@ -498,7 +498,7 @@ ScannerView_AM::ScannerView_AM(
 	
 	audio::output::start();
 	
-	audio::output::mute();
+	//audio::output::mute();
 
 	baseband::run_image(portapack::spi_flash::image_tag_am_audio);
 	receiver_model.set_modulation(ReceiverModel::Mode::AMAudio);
@@ -509,7 +509,7 @@ ScannerView_AM::ScannerView_AM(
 	receiver_model.set_squelch_level(0);
 	receiver_model.set_am_configuration(field_bw.selected_index());
 	
-	audio::output::unmute();
+	//audio::output::unmute();
 	
 	// TODO: Scanning thread here
 	scan_thread = std::make_unique<ScannerThread>(frequency_list);
