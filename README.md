@@ -17,3 +17,7 @@ The second checkbox enables a speaker control icon on the status bar. You may be
 * Touchscreen is more sensitive (r_touch_threshold lowered)
 
 * Touched buttons in menu / submenues are kept highligthed when going back into that menu
+
+* The speaker icon on taskbar, when green, activates internal speaker (and mutes headphones output). When greyed out, internal speaker is muted, and headphones output is activated.
+
+* I incorporated the scanners enhancement wrote by alain0001 ( https://github.com/eried/portapack-mayhem/pull/80 )
