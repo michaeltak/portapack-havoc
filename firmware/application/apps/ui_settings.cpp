@@ -264,11 +264,12 @@ SetUIView::SetUIView(NavigationView& nav) {
 	}
 
 	checkbox_speaker.on_select = [this](Checkbox&, bool v) {
-    	if (!v) audio::output::speaker_mute();		//Just mute audio if speaker is disabled
+    	if (!v) 
+			audio::output::speaker_mute();			//Just mute audio if speaker is disabled
 
 		persistent_memory::set_config_speaker(v);	//Store Speaker status
 
-        StatusRefreshMessage message { };				//Refresh status bar with/out speaker
+        StatusRefreshMessage message { };			//Refresh status bar with/out speaker
         EventDispatcher::send_message(message);
     };
 
