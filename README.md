@@ -18,6 +18,6 @@ The second checkbox enables a speaker control icon on the status bar. You may be
 
 * Touched buttons in menu / submenues are kept highligthed when going back into that menu
 
-* The speaker icon on taskbar, when green, activates internal speaker (and mutes headphones output). When greyed out, internal speaker is muted, and headphones output is activated.
+* The speaker icon on taskbar, when green, activates internal speaker (and mutes headphones output). When greyed out, internal speaker is muted, and headphones output is activated (this is useful only for H1 users)
 
 * I incorporated the scanners enhancement wrote by alain0001 ( https://github.com/eried/portapack-mayhem/pull/80 )
