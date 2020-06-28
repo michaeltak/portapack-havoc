@@ -47,61 +47,68 @@ double ui::WhipCalcView::get_decimals(double num, int16_t mult, bool round) {
 }
 
 void WhipCalcView::update_result() {
-	double length, calclength, divider;
-	divider = ((double)options_type.selected_index_value() / 8.0);
-	length = (speed_of_light_mps / (double)field_frequency.value()) * divider; 	// Metric
-	auto m = to_string_dec_int((int)length, 2);									//m
-	calclength = get_decimals(length,100);										//cm
-	auto cm = to_string_dec_int(int(calclength), 2);
-	auto mm = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);		//mm
-	text_result_metric.set(m + "m " + cm + "." + mm + "cm");
+	if (field_frequency.value() > 0)
+	{
+		double length, calclength, divider;
+		divider = ((double)options_type.selected_index_value() / 8.0);
 
-	uint8_t ant_count = 8;	//Shown antennas counter
-	console.write("\f"); //Equivalent to clear console and string buffer.
- 	length *= 1000;		//Get length in mm needed to extend the antenna
-	for (antenna_entry antenna : antenna_db) {	//go thru all antennas available
-		if (length >= antenna.elements.front() && length <= antenna.elements.back()) //This antenna is OK
-		{
-			uint16_t element,refined_quarter=0;
-			for(element=0; element < antenna.elements.size();element++) {
-				if (length == antenna.elements[element]) 			//Exact element in length
-				{	
-					element++;	//Real element is +1  (zero based vector)
-					break; 	//Done with this ant
-				} 
-				else if (length < antenna.elements[element]) 
-				{
-	 				double remain, this_element, quarter = 0;
-					remain = length - antenna.elements[element-1]; 	//mm needed from this element to reach length
-					this_element=antenna.elements[element] - antenna.elements[element -1];	//total mm on this element
-					quarter = (remain * 4) / this_element;	//havoc & portack ended on this int(quarter) resolution.
-					if (quarter - int(quarter) > 0.5) {	//rounding gave a measure closer to next quarter
-						refined_quarter=int(quarter) + 1;
-						if(refined_quarter == 4) {		//rounding gave a measure closer to next element
-							refined_quarter = 0;
-							element++;
+		length = (speed_of_light_mps / (double)field_frequency.value()) * divider; 	// Metric
+		auto m = to_string_dec_int((int)length, 2);									//m
+		calclength = get_decimals(length,100);										//cm
+		auto cm = to_string_dec_int(int(calclength), 2);
+		auto mm = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);		//mm
+		text_result_metric.set(m + "m " + cm + "." + mm + "cm");
+
+		uint8_t antennas_shown = 0;
+		console.clear(true);
+		length *= 1000;		//Get length in mm needed to extend the antenna
+		for (antenna_entry antenna : antenna_db) {	//go thru all antennas available
+			if (length >= antenna.elements.front() && length <= antenna.elements.back()) //This antenna is OK
+			{
+				uint16_t element,refined_quarter=0;
+				for(element=0; element < antenna.elements.size();element++) {
+					if (length == antenna.elements[element]) 			//Exact element in length
+					{	
+						element++;	//Real element is +1  (zero based vector)
+						break; 	//Done with this ant
+					} 
+					else if (length < antenna.elements[element]) 
+					{
+						double remain, this_element, quarter = 0;
+						remain = length - antenna.elements[element-1]; 	//mm needed from this element to reach length
+						this_element=antenna.elements[element] - antenna.elements[element -1];	//total mm on this element
+						quarter = (remain * 4) / this_element;	//havoc & portack ended on this int(quarter) resolution.
+						if (quarter - int(quarter) > 0.5) {	//rounding gave a measure closer to next quarter
+							refined_quarter=int(quarter) + 1;
+							if(refined_quarter == 4) {		//rounding gave a measure closer to next element
+								refined_quarter = 0;
+								element++;
+							}
+						} else {
+							refined_quarter=int(quarter);
 						}
-					} else {
-						refined_quarter=int(quarter);
+						break;	//Done with this ant
 					}
-					break;	//Done with this ant
 				}
+				if (++antennas_shown == 9) {
+					console.write(" and more ...");
+					break;
+				} 
+				console.write(antenna.label + " " + to_string_dec_int(element,1) + frac_str[refined_quarter] + " elements\n");
 			}
-			if (!ant_count) {
-				console.write(" and more ...");
-				break;
-			} 
-			console.write(antenna.label + " " + to_string_dec_int(element,1) + frac_str[refined_quarter] + " elements\n");
-			ant_count--;
 		}
-	}
 
-	calclength = (speed_of_light_fps / (double)field_frequency.value()) * divider;	// Imperial
-	auto feet = to_string_dec_int(int(calclength), 3);								//feet
-	calclength = get_decimals(calclength,12);										//inches
-	auto inch = to_string_dec_int(int(calclength), 2);
-	auto inch_c = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);		//inch decimal
-	text_result_imperial.set(feet + "ft " + inch + "." + inch_c + "in");
+		length = (speed_of_light_fps / (double)field_frequency.value()) * divider;	// Imperial
+		auto feet = to_string_dec_int(int(length), 3);								//feet
+		calclength = get_decimals(length,12);										//inches
+		auto inch = to_string_dec_int(int(calclength), 2);
+		auto inch_c = to_string_dec_int(int(get_decimals(calclength,10,true)), 1);	//inch decimal
+		text_result_imperial.set(feet + "ft " + inch + "." + inch_c + "in");
+	}
+	else {		//freq. is zero
+		text_result_metric.set("-");
+		text_result_imperial.set("-");
+	}
 }
 
 WhipCalcView::WhipCalcView(NavigationView& nav) {
@@ -136,7 +143,7 @@ WhipCalcView::WhipCalcView(NavigationView& nav) {
 			} 
 		}
 		if (line.length() > 0) txtline_process(line);	//Last line had no newline at end ?
-		if (!antenna_db.size()) antenna_Default();	//no antenna found on txt, use default
+		if (!antenna_db.size()) antenna_Default();		//no antenna on txt, use default
 	}
 	antennas_on_memory.set(to_string_dec_int(antenna_db.size(),2) + " antennas");	//tell user
 
@@ -146,7 +153,7 @@ WhipCalcView::WhipCalcView(NavigationView& nav) {
 	options_type.set_selected_index(2);		// Quarter wave
 
 	field_frequency.set_value(transmitter_model.tuning_frequency());
-	field_frequency.set_step(500000);		// 500kHz step
+	field_frequency.set_step(1000000);		// 1Mhz step
 	field_frequency.on_change = [this](rf::Frequency) {
 		this->update_result();
 	};
@@ -170,9 +177,9 @@ void ui::WhipCalcView::txtline_process(std::string& line) {
 	size_t previous = 0;
 	uint16_t value = 0;
 	antenna_entry new_antenna;
-	size_t current = line.find(" ");
+	size_t current = line.find(",");
 	while (current != std::string::npos) {
-		if (!previous) {								//first space found
+		if (!previous) {
 			new_antenna.label.assign(line,0,current);	//antenna label
 		} else {
 			value = std::stoi(line.substr(previous,current - previous));
@@ -180,7 +187,7 @@ void ui::WhipCalcView::txtline_process(std::string& line) {
 			new_antenna.elements.push_back(value);		//Store this new element
 		}
 		previous = current + 1;
-		current = line.find(" ",previous);				//Search for next space delimiter
+		current = line.find(",",previous);				//Search for next delimiter
 	}
 	if (!previous) return;								//Not even a label ? drop this antenna!
 	value = std::stoi(line.substr(previous,current - previous)); //Last element
