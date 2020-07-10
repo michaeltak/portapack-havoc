@@ -483,9 +483,9 @@ ScannerMenuView::ScannerMenuView(NavigationView& nav) {
 		{ "..",				ui::Color::light_grey(),&bitmap_icon_previous,	[&nav](){ nav.pop(); } },
 		});
 	add_items({
-		{ "Scan AM",	ui::Color::yellow(),		&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_AM>(); } },
-		{ "Scan NFM",	ui::Color::cyan(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_NFM>(); } },
-		{ "Scan FM",	ui::Color::red(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView_FM>(); } },
+		{ "Scan AM",	ui::Color::yellow(),		&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView>(AM); } },
+		{ "Scan NFM",	ui::Color::cyan(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView>(NFM); } },
+		{ "Scan FM",	ui::Color::red(),			&bitmap_icon_scanner,	[&nav](){ nav.push<ScannerView>(FM); } },
 	});
 	set_max_rows(1); 		// allow wider buttons
 	set_highlighted(1);		// Startup selection ( same as before)
