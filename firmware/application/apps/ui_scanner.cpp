@@ -21,6 +21,7 @@
  */
  // AD V 1.1 9/7/2020
 
+
 #include "ui_scanner.hpp"
 
 #include "baseband_api.hpp"
@@ -32,6 +33,60 @@ using namespace portapack;
 
 namespace ui {
 
+
+
+ScanManualView::ScanManualView(
+	NavigationView&, Rect parent_rect
+) {
+	set_parent_rect(parent_rect);
+	hidden(true);
+
+	add_children({
+		&labels
+	});
+}
+
+void ScanManualView::focus() {
+	
+}
+
+void ScanManualView::on_show() {
+
+}
+
+
+
+ScanStoredView::ScanStoredView(
+	NavigationView&, Rect parent_rect
+) {
+	set_parent_rect(parent_rect);
+	hidden(true);
+	add_children({
+		&big_display
+	});
+
+	big_display.set_style(&style_green);
+}
+
+void ScanStoredView::focus() {
+	
+}
+
+void ScanStoredView::on_show() {
+
+}
+
+void ScanStoredView::big_display_lock() {
+	big_display.set_style(&style_green);
+}
+
+void ScanStoredView::big_display_unlock() {
+	big_display.set_style(&style_grey);
+}
+
+void ScanStoredView::big_display_freq(rf::Frequency f) {
+	big_display.set(f);
+}
 
 ScannerThread::ScannerThread(
 	std::vector<rf::Frequency> frequency_list
@@ -52,6 +107,10 @@ void ScannerThread::set_scanning(const bool v) {
 	_scanning = v;
 }
 
+bool ScannerThread::is_scanning() {
+	return _scanning;
+}
+
 msg_t ScannerThread::static_fn(void* arg) {
 	auto obj = static_cast<ScannerThread*>(arg);
 	obj->run();
@@ -64,9 +123,8 @@ void ScannerThread::run() {
 	while( !chThdShouldTerminate() ) {
 		if (_scanning) {
 			// Retune
-				receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);
-			
-			message.range = frequency_index;  
+			receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);			
+			message.range = frequency_index;
 			EventDispatcher::send_message(message);
 		
 			frequency_index++;
@@ -78,14 +136,13 @@ void ScannerThread::run() {
 }
 
 void ScannerView::handle_retune(uint32_t i) {
-
-	text_cycle.set(	to_string_dec_uint(i + 1) + "/" +
-		to_string_dec_uint(frequency_list.size()) + ":" +
-		to_string_short_freq(frequency_list[i]) +"M"  );
+	view_stored.big_display_freq(frequency_list[i]);	//Show the big Freq
+	text_cycle.set(	to_string_dec_uint(i + 1) + "/" + to_string_dec_uint(frequency_list.size()) + " " + to_string_dec_uint(frequency_list[i] ) );
 	if (description_list[i] != "#") desc_cycle.set( description_list[i] );	//If this is a new description: show
 }
 
 void ScannerView::focus() {
+	//tab_view.focus();
 	field_lna.focus();
 }
 
@@ -95,13 +152,17 @@ ScannerView::~ScannerView() {
 	baseband::shutdown();
 }
 
-ScannerView::ScannerView(
-	NavigationView&,
-	const int32_t mod_type
-) : title_ { mod_name[mod_type] + " SCANNER" }
 
+ScannerView::ScannerView(
+	NavigationView& nav,
+	const int32_t mod_type
+) : nav_ { nav }, 
+	title_ { mod_name[mod_type] + " SCANNER" }
 {
 	add_children({
+		&tab_view,
+		&view_stored,		
+		&view_manual,
 		&rssi,
 		&labels,
 		&field_lna,
@@ -112,7 +173,6 @@ ScannerView::ScannerView(
 		&field_wait,
 		&text_cycle,
 		&desc_cycle,
-		&text_modulation,
 	});
 
 	size_t	def_step = mod_step[mod_type];
@@ -149,7 +209,7 @@ ScannerView::ScannerView(
 					case AIRBAND:def_step= 8330;  	break ;
 					}
 					frequency_list.push_back(entry.frequency_a);		//Store starting freq and description
-					description_list.push_back("R: " + to_string_dec_uint(entry.frequency_a) + ">" + to_string_dec_uint(entry.frequency_b) + ":S:" + to_string_dec_uint(def_step));
+					description_list.push_back("R:" + to_string_dec_uint(entry.frequency_a) + ">" + to_string_dec_uint(entry.frequency_b) + " S:" + to_string_dec_uint(def_step));
 					while (frequency_list.size() < MAX_DB_ENTRY && entry.frequency_a <= entry.frequency_b) { //add the rest of the range
 						entry.frequency_a+=def_step;
 						frequency_list.push_back(entry.frequency_a);
@@ -215,7 +275,7 @@ ScannerView::ScannerView(
 	} 
 	else 
 	{
-		text_modulation.set("NO SCANNER FILE ..." ); // There is no file
+		desc_cycle.set("NO SCANNER FILE ..." ); // There is no file
 	}
 }
 
@@ -223,15 +283,31 @@ ScannerView::ScannerView(
 
 void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
 	int32_t max_db = statistics.max_db;
-	
+
+	if (max_db < -squelch || timer >= (wait * 10)) {    // BAD SIGNAL OR WAIT TIME IS UP
+		if (!scan_thread->is_scanning()) {
+			scan_thread->set_scanning(true);   // WE RESCAN
+			//view_stored.big_display_unlock();
+			timer = 0;
+		}
+	}
+	else {
+		if (scan_thread->is_scanning()) {
+			scan_thread->set_scanning(false); // WE STOP SCANNING
+			//view_stored.big_display_lock();
+			timer=0;
+		} else {
+			timer++;
+		}
+	} 
+
+	/* 
 	if (max_db < -squelch) 	{    // BAD SIGNAL
-		//audio::output::stop();
 		scan_thread->set_scanning(true);   // WE RESCAN
+		view_stored.big_display_unlock();
 		timer = 0;
 	} 
 	else {							// GOOD SIGNAL
-		//audio::output::start();
-		if ( wait == 99) { timer = 0; }  //we stop scanning
 		if ( timer  >= (wait * 10 ) ) 	{    // WAIT in SECOND 10 * 50ms = 1 Ssc
 			scan_thread->set_scanning(true);  // WE RESCAN
 			timer = 0;
@@ -240,26 +316,14 @@ void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
 		{
 			scan_thread->set_scanning(false); // WE STOP SCANNING	
 			//   si NFM   text_ctcss.hidden(fase);
-			timer++;
+			if (!timer++) view_stored.big_display_lock();
 		}
-	}
+	} */
 }
 
 void ScannerView::on_headphone_volume_changed(int32_t v) {
 	const auto new_volume = volume_t::decibel(v - 99) + audio::headphone::volume_range().max;
 	receiver_model.set_headphone_volume(new_volume);
 }
-
-
-/*	
-void ScannerView::set_parent_rect(const Rect new_parent_rect) {
-	View::set_parent_rect(new_parent_rect);
-	
-	const ui::Rect waterfall_rect { 0, header_height, new_parent_rect.width(), new_parent_rect.height() - header_height };
-	waterfall.set_parent_rect(waterfall_rect);
-}
-*/
-
-
 	
 } /* namespace ui */

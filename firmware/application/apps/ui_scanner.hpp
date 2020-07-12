@@ -20,6 +20,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
+#include "ui.hpp"
+#include "ui_tabview.hpp"
 #include "receiver_model.hpp"
 
 #include "ui_receiver.hpp"
@@ -28,11 +30,12 @@
 #include "freqman.hpp"
 #include "log_file.hpp"
 
+
 #define MAX_DB_ENTRY 400
 
 namespace ui {
 	
-	enum modulation_type {
+enum modulation_type {
 	AM = 0,
 	FM,
 	NFM,
@@ -42,12 +45,63 @@ namespace ui {
 string const mod_name[4] = {	"AM", "FM", "NFM", "ANY" };
 size_t const mod_step[4] = {	9000, 100000, 12500, 10000 };
 
+class ScanManualView : public View {
+public:
+	ScanManualView(NavigationView& nav, Rect parent_rect);
+	
+	void focus() override;
+	void on_show() override;
+
+private:
+	Labels labels {
+		{ { 1 * 8, 9 * 8 }, "MANUAL SCAN TAB...", Color::light_grey() }
+	};
+};
+
+
+
+
+class ScanStoredView : public View {
+public:
+	ScanStoredView(NavigationView& nav, Rect parent_rect);
+	
+	void focus() override;
+	void on_show() override;
+	
+	void big_display_lock();
+	void big_display_unlock();
+	void big_display_freq(rf::Frequency f);
+
+private:
+
+	const Style style_grey {		// scanning
+		.font = font::fixed_8x16,
+		.background = Color::black(),
+		.foreground = Color::grey(),
+	};
+	
+	const Style style_green {		//Found signal
+		.font = font::fixed_8x16,
+		.background = Color::black(),
+		.foreground = Color::green(),
+	};
+
+	BigFrequency big_display {		//Show frequency in glamour
+		{ 4, 6 * 16, 28 * 8, 52 },
+		0
+	};
+
+};
+
+
+
 class ScannerThread {
 public:
 	ScannerThread(std::vector<rf::Frequency> frequency_list);
 	~ScannerThread();
 	
 	void set_scanning(const bool v);
+	bool is_scanning();
 
 	ScannerThread(const ScannerThread&) = delete;
 	ScannerThread(ScannerThread&&) = delete;
@@ -63,10 +117,11 @@ private:
 	void run();
 };
 
+
 class ScannerView : public View {
 public:
 	ScannerView(
-		NavigationView& , 
+		NavigationView& nav, 
 		int32_t mod_type
 	);
 	~ScannerView();
@@ -78,7 +133,17 @@ std::string title() const override { return  title_; }
 //void set_parent_rect(const Rect new_parent_rect) override;
 
 private:
-	static constexpr ui::Dim header_height = 3 * 16;
+	NavigationView& nav_;
+	Rect view_rect = { 0, 5 * 16, 240, 168 };
+	
+	ScanStoredView view_stored { nav_, view_rect };
+	ScanManualView view_manual { nav_, view_rect };
+	
+	TabView tab_view {
+		{ "Stored", Color::white(), &view_stored },
+		{ "Manual", Color::white(), &view_manual },
+	};
+
 	const std::string title_;
 	void on_statistics_update(const ChannelStatistics& statistics);
 	void on_headphone_volume_changed(int32_t v);
@@ -93,24 +158,24 @@ private:
 	freqman_db database { };
 	
 	Labels labels {
-		{ { 0 * 8, 0 * 16 }, "LNA:   VGA:   AMP:  VOL:", Color::light_grey() },
-		{ { 0 * 8, 1 * 16 }, "BW:    SQUELCH:  /99 WAIT:", Color::light_grey() },
+		{ { 0 * 8, 2 * 16 }, "LNA:   VGA:   AMP:  VOL:", Color::light_grey() },
+		{ { 0 * 8, 3* 16 }, "BW:    SQUELCH:  /99 WAIT:", Color::light_grey() },
 	};
 	
 	LNAGainField field_lna {
-		{ 4 * 8, 0 * 16 }
+		{ 4 * 8, 2 * 16 }
 	};
 
 	VGAGainField field_vga {
-		{ 11 * 8, 0 * 16 }
+		{ 11 * 8, 2 * 16 }
 	};
 	
 	RFAmpField field_rf_amp {
-		{ 18 * 8, 0 * 16 }
+		{ 18 * 8, 2 * 16 }
 	};
 	
 	NumberField field_volume {
-		{ 24 * 8, 0 * 16 },
+		{ 24 * 8, 2 * 16 },
 		2,
 		{ 0, 99 },
 		1,
@@ -118,7 +183,7 @@ private:
 	};
 	
 	OptionsField field_bw_NFM {
-		{ 3 * 8, 1 * 16 },
+		{ 3 * 8, 3 * 16 },
 		4,
 		{
 			{ "8k5", 0 },
@@ -129,7 +194,7 @@ private:
 	};
 
 	OptionsField field_bw_AM {
-		{ 3 * 8, 1 * 16 },
+		{ 3 * 8, 3 * 16 },
 		4,
 		{
 			{ "DSB ", 0 },
@@ -139,7 +204,7 @@ private:
 	};	
 
 	OptionsField field_bw_FM {
-		{ 3 * 8, 1 * 16 },
+		{ 3 * 8, 3 * 16 },
 		4,
 		{
 	/*		{ "3k", 0 },
@@ -151,7 +216,7 @@ private:
 	};
 
 	OptionsField field_bw_ANY {
-		{ 3 * 8, 1 * 16 },
+		{ 3 * 8, 3 * 16 },
 		4,
 		{
 			{ "DSB ", 0 },
@@ -161,7 +226,7 @@ private:
 	};		
 
 	NumberField field_squelch {
-		{ 15 * 8, 1 * 16 },
+		{ 15 * 8, 3 * 16 },
 		2,
 		{ 0, 99 },
 		1,
@@ -169,7 +234,7 @@ private:
 	};
 
 	NumberField field_wait {
-		{ 26 * 8, 1 * 16 },
+		{ 26 * 8, 3 * 16 },
 		2,
 		{ 0, 99 },
 		1,
@@ -177,26 +242,16 @@ private:
 	};
 
 	Text text_cycle {
-		{ 0, 3 * 16, 240, 16 },  
+		{ 0, 6 * 16, 240, 16 },  
 	};
 	
 	Text desc_cycle {
-		{0, 4 * 16, 240, 16 },
-			   
+		{0, 7 * 16, 240, 16 },	   
 	};
-	
-	Text text_modulation {
-		{ 0, 6 * 16, 240, 16 },
-	}; 
-	
+
 	RSSI rssi {
-		{ 0 * 16, 32, 15 * 16, 8 },
+		{ 0 * 16, 5 * 16, 15 * 16, 8 },
 	}; 
-	
-	Text text_AD {
-		{ 0, 14 * 8, 24 * 8, 16 },
-		
-	};
 	
 	std::unique_ptr<ScannerThread> scan_thread { };
 	
