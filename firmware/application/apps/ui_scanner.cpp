@@ -62,10 +62,9 @@ ScanStoredView::ScanStoredView(
 	set_parent_rect(parent_rect);
 	hidden(true);
 	add_children({
-		&big_display
+		&text_cycle,
+		&desc_cycle,
 	});
-
-	big_display.set_style(&style_green);
 }
 
 void ScanStoredView::focus() {
@@ -76,16 +75,12 @@ void ScanStoredView::on_show() {
 
 }
 
-void ScanStoredView::big_display_lock() {
-	big_display.set_style(&style_green);
+void ScanStoredView::text_set(std::string index_text) {
+	text_cycle.set(index_text);
 }
 
-void ScanStoredView::big_display_unlock() {
-	big_display.set_style(&style_grey);
-}
-
-void ScanStoredView::big_display_freq(rf::Frequency f) {
-	big_display.set(f);
+void ScanStoredView::desc_set(std::string description) {
+	desc_cycle.set(description);
 }
 
 ScannerThread::ScannerThread(
@@ -136,9 +131,9 @@ void ScannerThread::run() {
 }
 
 void ScannerView::handle_retune(uint32_t i) {
-	view_stored.big_display_freq(frequency_list[i]);	//Show the big Freq
-	text_cycle.set(	to_string_dec_uint(i + 1) + "/" + to_string_dec_uint(frequency_list.size()) + " " + to_string_dec_uint(frequency_list[i] ) );
-	if (description_list[i] != "#") desc_cycle.set( description_list[i] );	//If this is a new description: show
+	big_display_freq(frequency_list[i]);	//Show the big Freq
+	view_stored.text_set( to_string_dec_uint(i + 1) + "/" + to_string_dec_uint(frequency_list.size()) );
+	if (description_list[i] != "#") view_stored.desc_set( description_list[i] );	//If this is a new description: show
 }
 
 void ScannerView::focus() {
@@ -171,12 +166,9 @@ ScannerView::ScannerView(
 		&field_volume,
 		&field_squelch,
 		&field_wait,
-		&text_cycle,
-		&desc_cycle,
+		&big_display,
+		&button_pause
 	});
-
-	size_t	def_step = mod_step[mod_type];
-	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
 	
 	switch (mod_type) {
 	case NFM: 
@@ -191,7 +183,24 @@ ScannerView::ScannerView(
 	case ANY:
 		add_children({&field_bw_ANY	});
 		break;
-}
+	}
+
+	button_pause.on_select = [this](Button&) {
+		if (button_pause.text() == "SCAN") { 		//RESTART SCAN!
+			timer = wait * 10;
+			button_pause.set_text("PAUSE");
+			scan_continue();
+			
+		} else {
+			button_pause.set_text("SCAN");		//PAUSE!
+			scan_pause();
+		}
+	};
+
+	size_t	def_step = mod_step[mod_type];
+	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
+	big_display_lock();		//Start with green color
+
 	// LEARN FREQUENCIES
 	if ( load_freqman_file(scanner_file, database)  ) {
 		for(auto& entry : database) {									// READ LINE PER LINE
@@ -270,55 +279,52 @@ ScannerView::ScannerView(
 		// COMMON
 		receiver_model.enable(); 
 		receiver_model.set_squelch_level(0);
-		audio::output::start();
+		//audio::output::start();
 		scan_thread = std::make_unique<ScannerThread>(frequency_list);
 	} 
 	else 
 	{
-		desc_cycle.set("NO SCANNER FILE ..." ); // There is no file
+		view_stored.text_set("NO STORED SCANNER FILE"); // There is no file
 	}
 }
 
-//****************************************
+void ScannerView::big_display_lock() {
+	big_display.set_style(&style_green);
+}
+
+void ScannerView::big_display_unlock() {
+	big_display.set_style(&style_grey);
+}
+
+void ScannerView::big_display_freq(rf::Frequency f) {
+	big_display.set(f);
+}
 
 void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
-	int32_t max_db = statistics.max_db;
-
-	if (max_db < -squelch || timer >= (wait * 10)) {    // BAD SIGNAL OR WAIT TIME IS UP
-		if (!scan_thread->is_scanning()) {
-			scan_thread->set_scanning(true);   // WE RESCAN
-			//view_stored.big_display_unlock();
-			timer = 0;
-		}
+	if (statistics.max_db < -squelch || timer >= (wait * 10)) {    // BAD SIGNAL OR WAIT TIME IS UP
+		if (!scan_thread->is_scanning() && button_pause.text() != "SCAN") //not scanning and not paused
+			scan_continue();	//so, resume scanning!
 	}
-	else {
-		if (scan_thread->is_scanning()) {
-			scan_thread->set_scanning(false); // WE STOP SCANNING
-			//view_stored.big_display_lock();
-			timer=0;
-		} else {
-			timer++;
-		}
-	} 
-
-	/* 
-	if (max_db < -squelch) 	{    // BAD SIGNAL
-		scan_thread->set_scanning(true);   // WE RESCAN
-		view_stored.big_display_unlock();
-		timer = 0;
-	} 
-	else {							// GOOD SIGNAL
-		if ( timer  >= (wait * 10 ) ) 	{    // WAIT in SECOND 10 * 50ms = 1 Ssc
-			scan_thread->set_scanning(true);  // WE RESCAN
-			timer = 0;
-		}
+	else //GOOD SIGNAL
+	{
+		if (scan_thread->is_scanning())
+			scan_pause();
 		else
-		{
-			scan_thread->set_scanning(false); // WE STOP SCANNING	
-			//   si NFM   text_ctcss.hidden(fase);
-			if (!timer++) view_stored.big_display_lock();
-		}
-	} */
+			timer++;
+	}
+}
+
+void ScannerView::scan_pause() {
+	scan_thread->set_scanning(false); // WE STOP SCANNING
+	audio::output::start();
+	//view_stored.big_display_lock();
+	timer = 0;
+}
+
+void ScannerView::scan_continue() {
+	audio::output::stop();
+	//view_stored.big_display_unlock();
+	scan_thread->set_scanning(true);   // WE RESCAN
 }
 
 void ScannerView::on_headphone_volume_changed(int32_t v) {

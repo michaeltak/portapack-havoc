@@ -67,29 +67,20 @@ public:
 	
 	void focus() override;
 	void on_show() override;
-	
-	void big_display_lock();
-	void big_display_unlock();
-	void big_display_freq(rf::Frequency f);
+	void text_set(std::string index_text);
+	void desc_set(std::string description);
 
 private:
 
-	const Style style_grey {		// scanning
-		.font = font::fixed_8x16,
-		.background = Color::black(),
-		.foreground = Color::grey(),
+	Text text_cycle {
+		{ 0, 2 * 16, 240, 16 },  
 	};
 	
-	const Style style_green {		//Found signal
-		.font = font::fixed_8x16,
-		.background = Color::black(),
-		.foreground = Color::green(),
+	Text desc_cycle {
+		{0, 3 * 16, 240, 16 },	   
 	};
 
-	BigFrequency big_display {		//Show frequency in glamour
-		{ 4, 6 * 16, 28 * 8, 52 },
-		0
-	};
+
 
 };
 
@@ -128,13 +119,29 @@ public:
 	
 	void focus() override;
 
+	void big_display_lock();
+	void big_display_unlock();
+	void big_display_freq(rf::Frequency f);
+
+	const Style style_grey {		// scanning
+		.font = font::fixed_8x16,
+		.background = Color::black(),
+		.foreground = Color::grey(),
+	};
+	
+	const Style style_green {		//Found signal
+		.font = font::fixed_8x16,
+		.background = Color::black(),
+		.foreground = Color::green(),
+	};
+
 std::string title() const override { return  title_; }
 
 //void set_parent_rect(const Rect new_parent_rect) override;
 
 private:
 	NavigationView& nav_;
-	Rect view_rect = { 0, 5 * 16, 240, 168 };
+	Rect view_rect = { 0, 10 * 16, 240, 100 };
 	
 	ScanStoredView view_stored { nav_, view_rect };
 	ScanManualView view_manual { nav_, view_rect };
@@ -145,6 +152,10 @@ private:
 	};
 
 	const std::string title_;
+
+	void scan_pause();
+	void scan_continue();
+
 	void on_statistics_update(const ChannelStatistics& statistics);
 	void on_headphone_volume_changed(int32_t v);
 	void handle_retune(uint32_t i);
@@ -241,17 +252,19 @@ private:
 		' ',
 	};
 
-	Text text_cycle {
-		{ 0, 6 * 16, 240, 16 },  
-	};
-	
-	Text desc_cycle {
-		{0, 7 * 16, 240, 16 },	   
-	};
-
 	RSSI rssi {
 		{ 0 * 16, 5 * 16, 15 * 16, 8 },
 	}; 
+
+	BigFrequency big_display {		//Show frequency in glamour
+		{ 4, 6 * 16, 28 * 8, 52 },
+		0
+	};
+
+	Button button_pause {
+		{ 72, 264, 96, 24 },
+		"PAUSE"
+	};
 	
 	std::unique_ptr<ScannerThread> scan_thread { };
 	
