@@ -36,14 +36,35 @@ namespace ui {
 
 
 ScanManualView::ScanManualView(
-	NavigationView&, Rect parent_rect
+	NavigationView& nav, Rect parent_rect
 ) {
 	set_parent_rect(parent_rect);
 	hidden(true);
 
 	add_children({
-		&labels
+		&labels,
+		&button_manual_start,
+		&button_manual_stop,
+		&button_manual_execute
 	});
+
+	button_manual_start.on_select = [this, &nav](Button& button) {
+		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.min);
+		new_view->on_changed = [this, &button](rf::Frequency f) {
+			manual_start(f);
+		};
+	};
+	
+	button_manual_stop.on_select = [this, &nav](Button& button) {
+		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.max);
+		new_view->on_changed = [this, &button](rf::Frequency f) {
+			manual_stop(f);
+		};
+	};
+
+	button_manual_execute.on_select = [this](Button&) {
+		
+	};
 }
 
 void ScanManualView::focus() {
@@ -54,6 +75,18 @@ void ScanManualView::on_show() {
 
 }
 
+void ScanManualView::manual_start(rf::Frequency f) {
+	// Change everything except max
+	
+	frequency_range.min = f;
+	button_manual_start.set_text(to_string_short_freq(f));
+}
+
+void ScanManualView::manual_stop(rf::Frequency f) {
+	// Change everything except min
+	frequency_range.max = f;
+	button_manual_stop.set_text(to_string_short_freq(f));
+}
 
 
 ScanStoredView::ScanStoredView(

@@ -49,13 +49,35 @@ class ScanManualView : public View {
 public:
 	ScanManualView(NavigationView& nav, Rect parent_rect);
 	
+	jammer::jammer_range_t frequency_range { false, 0, 0 };  //perfect for manual scan task too...
+
 	void focus() override;
 	void on_show() override;
 
+	void manual_start(rf::Frequency f);
+	void manual_stop(rf::Frequency f);
+
 private:
 	Labels labels {
-		{ { 1 * 8, 9 * 8 }, "MANUAL SCAN TAB...", Color::light_grey() }
+		{ { 2 * 8, 0 * 8}, "Start", Color::light_grey() },
+		{ { 23 * 8, 0 * 8 }, "Stop", Color::light_grey() },
 	};
+
+	Button button_manual_start {
+		{ 0 * 8, 1 * 16, 11 * 8, 28 },
+		""
+	};
+
+	Button button_manual_stop {
+		{ 19 * 8, 1 * 16, 11 * 8, 28 },
+		""
+	};
+
+	Button button_manual_execute {
+		{ 9 * 8, 3 * 16, 11 * 8, 28 },
+		"EXECUTE"
+	};
+
 };
 
 
