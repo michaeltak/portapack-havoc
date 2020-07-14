@@ -54,10 +54,9 @@ public:
 	void focus() override;
 	void on_show() override;
 
-	void manual_start(rf::Frequency f);
-	void manual_stop(rf::Frequency f);
-
 private:
+	NavigationView& nav_;
+	
 	Labels labels {
 		{ { 2 * 8, 0 * 8}, "Start", Color::light_grey() },
 		{ { 23 * 8, 0 * 8 }, "Stop", Color::light_grey() },
@@ -74,7 +73,7 @@ private:
 	};
 
 	Button button_manual_execute {
-		{ 9 * 8, 3 * 16, 11 * 8, 28 },
+		{ 9 * 8, 7 * 8, 12 * 8, 28 },
 		"EXECUTE"
 	};
 
@@ -144,6 +143,7 @@ public:
 	void big_display_lock();
 	void big_display_unlock();
 	void big_display_freq(rf::Frequency f);
+	void DoManualScan(jammer::jammer_range_t frequency_range );
 
 	const Style style_grey {		// scanning
 		.font = font::fixed_8x16,
@@ -157,12 +157,15 @@ public:
 		.foreground = Color::green(),
 	};
 
-std::string title() const override { return  title_; }
+	std::string title() const override { return  title_; }
+	std::vector<rf::Frequency> frequency_list{ };
+	std::vector<string> description_list { };
 
 //void set_parent_rect(const Rect new_parent_rect) override;
 
 private:
 	NavigationView& nav_;
+	const int32_t mod_type_;
 	Rect view_rect = { 0, 10 * 16, 240, 100 };
 	
 	ScanStoredView view_stored { nav_, view_rect };
@@ -181,9 +184,6 @@ private:
 	void on_statistics_update(const ChannelStatistics& statistics);
 	void on_headphone_volume_changed(int32_t v);
 	void handle_retune(uint32_t i);
-	
-	std::vector<rf::Frequency> frequency_list{ };
-	std::vector<string> description_list { };
 
 	int32_t squelch { 0 };
 	uint32_t timer { 0 };
