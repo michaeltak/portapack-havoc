@@ -33,8 +33,6 @@ using namespace portapack;
 
 namespace ui {
 
-
-
 ScanManualView::ScanManualView (
 	NavigationView& nav, Rect parent_rect
 ): nav_ { nav }
@@ -63,19 +61,6 @@ ScanManualView::ScanManualView (
 			frequency_range.max = f;
 			button_manual_stop.set_text(to_string_short_freq(f));
 		};
-	};
-
-	button_manual_execute.on_select = [this](Button&) {
-		if (!frequency_range.min || !frequency_range.max)
-			nav_.display_modal("Error", "Both START and STOP freqs\nneed a value");
-
-		if (frequency_range.min > frequency_range.max)
-			nav_.display_modal("Error", "STOP freq\nis lower than START");
-
-		frequency_range.enabled=true;
-		//scanner.DoManualScan(frequency_range);
-		//DoManualScan(frequency_range);
-		//DoManualScan();
 	};
 }
 
@@ -122,6 +107,15 @@ ScannerThread::ScannerThread(
 }
 
 ScannerThread::~ScannerThread() {
+/* 	if( thread ) {
+		chThdTerminate(thread);
+		chThdWait(thread);
+		thread = nullptr;
+	} */
+	stop();
+}
+
+void ScannerThread::stop() {
 	if( thread ) {
 		chThdTerminate(thread);
 		chThdWait(thread);
@@ -137,6 +131,14 @@ bool ScannerThread::is_scanning() {
 	return _scanning;
 }
 
+void ScannerThread::set_userpause(const bool v) {
+	_userpause = v;
+}
+
+bool ScannerThread::is_userpause() {
+	return _userpause;
+}
+
 msg_t ScannerThread::static_fn(void* arg) {
 	auto obj = static_cast<ScannerThread*>(arg);
 	obj->run();
@@ -144,20 +146,22 @@ msg_t ScannerThread::static_fn(void* arg) {
 }
 
 void ScannerThread::run() {
-	RetuneMessage message { };	
-	uint32_t frequency_index = 0;
-	while( !chThdShouldTerminate() ) {
-		if (_scanning) {
-			// Retune
-			receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);			
-			message.range = frequency_index;
-			EventDispatcher::send_message(message);
-		
-			frequency_index++;
-			if (frequency_index >= frequency_list_.size())
-				frequency_index = 0;
+	if (frequency_list_.size())	{				//IF THERE IS A FREQUENCY LIST ...	
+		RetuneMessage message { };
+		uint32_t frequency_index = 0;
+		while( !chThdShouldTerminate() ) {
+			if (_scanning) {
+				// Retune
+				receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);			
+				message.range = frequency_index;
+				EventDispatcher::send_message(message);
+			
+				frequency_index++;
+				if (frequency_index >= frequency_list_.size())
+					frequency_index = 0;
+			}
+			chThdSleepMilliseconds(50);  
 		}
-		chThdSleepMilliseconds(50);  
 	}
 }
 
@@ -176,40 +180,6 @@ ScannerView::~ScannerView() {
 	audio::output::stop();
 	receiver_model.disable();
 	baseband::shutdown();
-}
-
-void ScannerView::DoManualScan(jammer::jammer_range_t frequency_range ) {
-
-
-
-	ScannerView::nav_.display_modal("Error", "Jamming bandwidth too large.\nMust be less than 24MHz.");
-
-	if (scan_thread->is_scanning()) 
-		scan_thread->set_scanning(false);
-
-	audio::output::stop();
-	receiver_model.disable();
-
-	size_t	def_step = mod_step[mod_type_];
-	//frequency_list.clear(); //This shouldn't be necessary since it is moved inside scanner
-	description_list.clear();
-	description_list.push_back(
-		"M:" + to_string_dec_uint(frequency_range.min) + ">"
-	 	+ to_string_dec_uint(frequency_range.max) + " S:" 
-	 	+ to_string_dec_uint(def_step)
-	);
-	while (frequency_list.size() < MAX_DB_ENTRY && frequency_range.min <= frequency_range.max) { //add manual range				
-		frequency_list.push_back(frequency_range.min);
-		description_list.push_back("#");				//Token (keep showing the last description)
-		frequency_range.min+=def_step;
-	}
-
-	for (rf::Frequency f = frequency_range.min; f <= frequency_range.max; f += def_step)
-		frequency_list.push_back(f);
-
-	receiver_model.enable(); 
-	receiver_model.set_squelch_level(0);
-	scan_thread = std::make_unique<ScannerThread>(frequency_list);
 }
 
 ScannerView::ScannerView(
@@ -232,7 +202,8 @@ ScannerView::ScannerView(
 		&field_squelch,
 		&field_wait,
 		&big_display,
-		&button_pause
+		&button_pause,
+		&button_audio_app
 	});
 	
 	switch (mod_type) {
@@ -250,27 +221,42 @@ ScannerView::ScannerView(
 		break;
 	}
 
+	//button_audio_app.visible(false); 			//Button for jumping into radio reception
+	button_audio_app.hidden(true);
+
+	def_step = mod_step[mod_type];
+	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
+	big_display.set_style(&style_green);	//Start with green color
+
 	button_pause.on_select = [this](Button&) {
-		if (button_pause.text() == "SCAN") { 		//RESTART SCAN!
-			timer = wait * 10;
+		if (scan_thread->is_userpause()) { 
+			timer = wait * 10;						//Unlock timer pause on_statistics_update
 			button_pause.set_text("PAUSE");
-			scan_continue();
+			scan_thread->set_userpause(false);
+			//scan_resume();
 		} else {
-			button_pause.set_text("SCAN");		//PAUSE!
 			scan_pause();
+			scan_thread->set_userpause(true);
+			button_pause.set_text("SCAN");		//PAUSE!	
 		}
 	};
 
-	size_t	def_step = mod_step[mod_type];
-	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
-	big_display_lock();		//Start with green color
+	button_audio_app.on_select = [this, &nav](Button&) {
+		if (scan_thread->is_scanning())
+			scan_thread->set_scanning(false);
+		audio::output::stop();
+		//receiver_model.disable();
+		//baseband::shutdown();
+		scan_thread->stop();
+		nav.push<AnalogAudioView>(); //(false)
+	};
 
 	//PRE-CONFIGURATION:
 	field_wait.on_change = [this](int32_t v) {	wait = v;	}; 	field_wait.set_value(5);
 	field_squelch.on_change = [this](int32_t v) {	squelch = v;	}; 	field_squelch.set_value(30);
 	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
 	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
-		
+
 	switch (mod_type) {
 	case NFM:
 		baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
@@ -307,6 +293,42 @@ ScannerView::ScannerView(
 	default:	return;
 	}
 
+	view_manual.button_manual_execute.on_select = [this](Button&) {
+		if (!view_manual.frequency_range.min || !view_manual.frequency_range.max)
+			nav_.display_modal("Error", "Both START and STOP freqs\nneed a value");
+
+		if (view_manual.frequency_range.min > view_manual.frequency_range.max)
+			nav_.display_modal("Error", "STOP freq\nis lower than START");
+
+		if (scan_thread->is_scanning()) 
+			scan_thread->set_scanning(false);
+
+		//STOP SCANNER THREAD
+		audio::output::stop();
+		// receiver_model.disable();
+		// baseband::shutdown();
+		scan_thread->stop();
+
+		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
+		description_list.clear();
+		description_list.push_back(
+			"M:" + to_string_dec_uint(view_manual.frequency_range.min) + ">"
+	 		+ to_string_dec_uint(view_manual.frequency_range.max) + " S:" 
+	 		+ to_string_dec_uint(def_step)
+		);
+		rf::Frequency frequency = view_manual.frequency_range.min;
+		while (frequency_list.size() < MAX_DB_ENTRY &&  frequency <= view_manual.frequency_range.max) { //add manual range				
+			frequency_list.push_back(frequency);
+			description_list.push_back("#");				//Token (keep showing the last description)
+			frequency+=def_step;
+		}
+
+		//RESTART SCANNER THREAD
+		receiver_model.enable(); 
+		receiver_model.set_squelch_level(0);
+		scan_thread = std::make_unique<ScannerThread>(frequency_list);
+	};
+
 	// LEARN FREQUENCIES
 	if ( load_freqman_file(scanner_file, database)  ) {
 		for(auto& entry : database) {									// READ LINE PER LINE
@@ -340,25 +362,16 @@ ScannerView::ScannerView(
 				break; //No more space: Stop reading the txt file !
 			}		
 		}
-
-
-		// COMMON
-		receiver_model.enable(); 
-		receiver_model.set_squelch_level(0);
-		scan_thread = std::make_unique<ScannerThread>(frequency_list);
 	} 
 	else 
 	{
-		view_stored.text_set("NO STORED SCANNER FILE"); // There is no file
+		view_stored.desc_set(" NO SCANNER .TXT FILE ..." );
+		tab_view.set_selected(1);	//Since no stored freqs, put focus on manual scan tab
 	}
-}
-
-void ScannerView::big_display_lock() {
-	big_display.set_style(&style_green);
-}
-
-void ScannerView::big_display_unlock() {
-	big_display.set_style(&style_grey);
+	// COMMON
+	receiver_model.enable(); 
+	receiver_model.set_squelch_level(0);
+	scan_thread = std::make_unique<ScannerThread>(frequency_list);
 }
 
 void ScannerView::big_display_freq(rf::Frequency f) {
@@ -366,30 +379,43 @@ void ScannerView::big_display_freq(rf::Frequency f) {
 }
 
 void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
-	if (statistics.max_db < -squelch || timer >= (wait * 10)) {    // BAD SIGNAL OR WAIT TIME IS UP
-		if (!scan_thread->is_scanning() && button_pause.text() != "SCAN") //not scanning and not paused
-			scan_continue();	//so, resume scanning!
-	}
-	else //GOOD SIGNAL
+	if (!scan_thread->is_userpause()) 
 	{
-		if (scan_thread->is_scanning())
-			scan_pause();
-		else
-			timer++;
+		if (timer >= (wait * 10) ) 
+		{
+			timer=0;
+			scan_resume();
+		} 
+		else if (!timer) 
+		{
+			if (statistics.max_db > -squelch) {  //There is something on the air...
+				scan_pause();
+				timer++;
+			} 
+		} 
+		else 
+		{
+				timer++;
+		}
 	}
 }
 
 void ScannerView::scan_pause() {
-	scan_thread->set_scanning(false); // WE STOP SCANNING
-	audio::output::start();
-	//view_stored.big_display_lock();
-	timer = 0;
+	if (scan_thread->is_scanning()) {
+		scan_thread->set_scanning(false); // WE STOP SCANNING
+		audio::output::start();
+		button_audio_app.hidden(false); 			//Button for jumping into radio reception
+		button_audio_app.set_dirty();
+	}
 }
 
-void ScannerView::scan_continue() {
-	audio::output::stop();
-	//view_stored.big_display_unlock();
-	scan_thread->set_scanning(true);   // WE RESCAN
+void ScannerView::scan_resume() {
+	button_audio_app.hidden(true);
+	button_audio_app.set_dirty();
+	if (!scan_thread->is_scanning()) {
+		audio::output::stop();
+		scan_thread->set_scanning(true);   // WE RESCAN
+	}
 }
 
 void ScannerView::on_headphone_volume_changed(int32_t v) {

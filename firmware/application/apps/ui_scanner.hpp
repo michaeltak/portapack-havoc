@@ -29,6 +29,7 @@
 #include "ui_spectrum.hpp"
 #include "freqman.hpp"
 #include "log_file.hpp"
+#include "analog_audio_app.hpp"
 
 
 #define MAX_DB_ENTRY 400
@@ -54,9 +55,16 @@ public:
 	void focus() override;
 	void on_show() override;
 
+	Button button_manual_execute {
+		{ 9 * 8, 7 * 8, 12 * 8, 28 },
+		"EXECUTE"
+	};
+
 private:
 	NavigationView& nav_;
-	
+
+	//ScannerView* scanner_view{ nullptr };
+
 	Labels labels {
 		{ { 2 * 8, 0 * 8}, "Start", Color::light_grey() },
 		{ { 23 * 8, 0 * 8 }, "Stop", Color::light_grey() },
@@ -72,14 +80,7 @@ private:
 		""
 	};
 
-	Button button_manual_execute {
-		{ 9 * 8, 7 * 8, 12 * 8, 28 },
-		"EXECUTE"
-	};
-
 };
-
-
 
 
 class ScanStoredView : public View {
@@ -92,7 +93,6 @@ public:
 	void desc_set(std::string description);
 
 private:
-
 	Text text_cycle {
 		{ 0, 2 * 16, 240, 16 },  
 	};
@@ -100,20 +100,21 @@ private:
 	Text desc_cycle {
 		{0, 3 * 16, 240, 16 },	   
 	};
-
-
-
 };
-
 
 
 class ScannerThread {
 public:
 	ScannerThread(std::vector<rf::Frequency> frequency_list);
 	~ScannerThread();
-	
+
 	void set_scanning(const bool v);
 	bool is_scanning();
+
+	void set_userpause(const bool v);
+	bool is_userpause();
+
+	void stop();
 
 	ScannerThread(const ScannerThread&) = delete;
 	ScannerThread(ScannerThread&&) = delete;
@@ -125,6 +126,7 @@ private:
 	Thread* thread { nullptr };
 	
 	bool _scanning { true };
+	bool _userpause { false };
 	static msg_t static_fn(void* arg);
 	void run();
 };
@@ -140,10 +142,8 @@ public:
 	
 	void focus() override;
 
-	void big_display_lock();
-	void big_display_unlock();
 	void big_display_freq(rf::Frequency f);
-	void DoManualScan(jammer::jammer_range_t frequency_range );
+
 
 	const Style style_grey {		// scanning
 		.font = font::fixed_8x16,
@@ -179,7 +179,7 @@ private:
 	const std::string title_;
 
 	void scan_pause();
-	void scan_continue();
+	void scan_resume();
 
 	void on_statistics_update(const ChannelStatistics& statistics);
 	void on_headphone_volume_changed(int32_t v);
@@ -188,6 +188,7 @@ private:
 	int32_t squelch { 0 };
 	uint32_t timer { 0 };
 	uint32_t wait { 0 };
+	size_t	def_step { 0 };
 	freqman_db database { };
 	
 	Labels labels {
@@ -284,8 +285,13 @@ private:
 	};
 
 	Button button_pause {
-		{ 72, 264, 96, 24 },
+		{ 12, 264, 96, 24 },
 		"PAUSE"
+	};
+
+	Button button_audio_app {
+		{ 124, 264, 96, 24 },
+		"AUDIO APP"
 	};
 	
 	std::unique_ptr<ScannerThread> scan_thread { };
@@ -305,6 +311,5 @@ private:
 		}
 	};
 };
-												 
 
 } /* namespace ui */
