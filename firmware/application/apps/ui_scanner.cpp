@@ -76,9 +76,11 @@ ScanStoredView::ScanStoredView(
 	NavigationView&, Rect parent_rect
 ) {
 	set_parent_rect(parent_rect);
-	hidden(true);
+	//hidden(true);
 	add_children({
+		&labels,
 		&text_cycle,
+		&text_max,
 		&desc_cycle,
 	});
 }
@@ -93,6 +95,10 @@ void ScanStoredView::on_show() {
 
 void ScanStoredView::text_set(std::string index_text) {
 	text_cycle.set(index_text);
+}
+
+void ScanStoredView::max_set(std::string max_text) {
+	text_max.set(max_text);
 }
 
 void ScanStoredView::desc_set(std::string description) {
@@ -167,7 +173,7 @@ void ScannerThread::run() {
 
 void ScannerView::handle_retune(uint32_t i) {
 	big_display_freq(frequency_list[i]);	//Show the big Freq
-	view_stored.text_set( to_string_dec_uint(i + 1) + "/" + to_string_dec_uint(frequency_list.size()) );
+	view_stored.text_set( to_string_dec_uint(i + 1,3));
 	if (description_list[i] != "#") view_stored.desc_set( description_list[i] );	//If this is a new description: show
 }
 
@@ -180,6 +186,13 @@ ScannerView::~ScannerView() {
 	audio::output::stop();
 	receiver_model.disable();
 	baseband::shutdown();
+}
+
+void ScannerView::show_max() {		//show total number of freqs to scan inside stored tab
+	if (frequency_list.size() == MAX_DB_ENTRY)
+		view_stored.max_set( to_string_dec_uint(MAX_DB_ENTRY) + " (DB MAX!)");
+	else
+		view_stored.max_set( to_string_dec_uint(frequency_list.size()));
 }
 
 ScannerView::ScannerView(
@@ -205,6 +218,7 @@ ScannerView::ScannerView(
 		&button_pause,
 		&button_audio_app
 	});
+
 	
 	switch (mod_type) {
 	case NFM: 
@@ -221,9 +235,6 @@ ScannerView::ScannerView(
 		break;
 	}
 
-	//button_audio_app.visible(false); 			//Button for jumping into radio reception
-	button_audio_app.hidden(true);
-
 	def_step = mod_step[mod_type];
 	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
 	big_display.set_style(&style_green);	//Start with green color
@@ -231,24 +242,22 @@ ScannerView::ScannerView(
 	button_pause.on_select = [this](Button&) {
 		if (scan_thread->is_userpause()) { 
 			timer = wait * 10;						//Unlock timer pause on_statistics_update
-			button_pause.set_text("PAUSE");
+			button_pause.set_text("PAUSE");		//resume scanning (show button for pause)	
 			scan_thread->set_userpause(false);
 			//scan_resume();
 		} else {
 			scan_pause();
 			scan_thread->set_userpause(true);
-			button_pause.set_text("SCAN");		//PAUSE!	
+			button_pause.set_text("RESUME");		//PAUSED, show resume	
 		}
 	};
 
-	button_audio_app.on_select = [this, &nav](Button&) {
+	button_audio_app.on_select = [this](Button&) {
 		if (scan_thread->is_scanning())
-			scan_thread->set_scanning(false);
-		audio::output::stop();
-		//receiver_model.disable();
-		//baseband::shutdown();
+		 	scan_thread->set_scanning(false);
 		scan_thread->stop();
-		nav.push<AnalogAudioView>(); //(false)
+		nav_.pop();
+		nav_.push<AnalogAudioView>();
 	};
 
 	//PRE-CONFIGURATION:
@@ -304,24 +313,25 @@ ScannerView::ScannerView(
 			scan_thread->set_scanning(false);
 
 		//STOP SCANNER THREAD
-		audio::output::stop();
-		// receiver_model.disable();
-		// baseband::shutdown();
+		//audio::output::stop();
 		scan_thread->stop();
 
 		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
 		description_list.clear();
 		description_list.push_back(
-			"M:" + to_string_dec_uint(view_manual.frequency_range.min) + ">"
-	 		+ to_string_dec_uint(view_manual.frequency_range.max) + " S:" 
-	 		+ to_string_dec_uint(def_step)
+			"M:" + to_string_short_freq(view_manual.frequency_range.min) + " > "
+	 		+ to_string_short_freq(view_manual.frequency_range.max) + " S:" 
+	 		+ to_string_short_freq(def_step)
 		);
+
 		rf::Frequency frequency = view_manual.frequency_range.min;
 		while (frequency_list.size() < MAX_DB_ENTRY &&  frequency <= view_manual.frequency_range.max) { //add manual range				
 			frequency_list.push_back(frequency);
 			description_list.push_back("#");				//Token (keep showing the last description)
 			frequency+=def_step;
 		}
+
+		show_max();
 
 		//RESTART SCANNER THREAD
 		receiver_model.enable(); 
@@ -346,7 +356,7 @@ ScannerView::ScannerView(
 					case AIRBAND:def_step= 8330;  	break ;
 					}
 					frequency_list.push_back(entry.frequency_a);		//Store starting freq and description
-					description_list.push_back("R:" + to_string_dec_uint(entry.frequency_a) + ">" + to_string_dec_uint(entry.frequency_b) + " S:" + to_string_dec_uint(def_step));
+					description_list.push_back("R:" + to_string_short_freq(entry.frequency_a) + " > " + to_string_short_freq(entry.frequency_b) + " S:" + to_string_short_freq(def_step));
 					while (frequency_list.size() < MAX_DB_ENTRY && entry.frequency_a <= entry.frequency_b) { //add the rest of the range
 						entry.frequency_a+=def_step;
 						frequency_list.push_back(entry.frequency_a);
@@ -356,6 +366,7 @@ ScannerView::ScannerView(
 					frequency_list.push_back(entry.frequency_a);
 					description_list.push_back("S: " + entry.description);
 				}
+				show_max();
 			}
 			else
 			{
@@ -404,14 +415,10 @@ void ScannerView::scan_pause() {
 	if (scan_thread->is_scanning()) {
 		scan_thread->set_scanning(false); // WE STOP SCANNING
 		audio::output::start();
-		button_audio_app.hidden(false); 			//Button for jumping into radio reception
-		button_audio_app.set_dirty();
 	}
 }
 
 void ScannerView::scan_resume() {
-	button_audio_app.hidden(true);
-	button_audio_app.set_dirty();
 	if (!scan_thread->is_scanning()) {
 		audio::output::stop();
 		scan_thread->set_scanning(true);   // WE RESCAN

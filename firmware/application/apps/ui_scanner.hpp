@@ -90,11 +90,20 @@ public:
 	void focus() override;
 	void on_show() override;
 	void text_set(std::string index_text);
+	void max_set(std::string max_text);
 	void desc_set(std::string description);
 
 private:
+	Labels labels {
+		{ { 4 * 8, 2 * 16 }, "of", Color::light_grey() },
+	};
+
 	Text text_cycle {
-		{ 0, 2 * 16, 240, 16 },  
+		{ 0, 2 * 16, 3 * 8, 16 },  
+	};
+
+	Text text_max {
+		{ 7 * 8, 2 * 16, 18 * 8, 16 },  
 	};
 	
 	Text desc_cycle {
@@ -178,6 +187,7 @@ private:
 
 	const std::string title_;
 
+	void show_max();
 	void scan_pause();
 	void scan_resume();
 
