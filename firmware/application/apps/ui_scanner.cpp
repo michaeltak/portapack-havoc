@@ -33,6 +33,20 @@ using namespace portapack;
 
 namespace ui {
 
+ScanModeView::ScanModeView (
+	NavigationView& nav, Rect parent_rect
+): nav_ { nav }
+{
+	set_parent_rect(parent_rect);
+	hidden(true);
+
+	add_children({
+		&labels,
+		&field_mode
+	});
+
+}
+
 ScanManualView::ScanManualView (
 	NavigationView& nav, Rect parent_rect
 ): nav_ { nav }
@@ -44,6 +58,7 @@ ScanManualView::ScanManualView (
 		&labels,
 		&button_manual_start,
 		&button_manual_stop,
+		&step_mode,
 		&button_manual_execute
 	});
 
@@ -64,19 +79,19 @@ ScanManualView::ScanManualView (
 	};
 }
 
-void ScanManualView::focus() {
+/* void ScanManualView::focus() {
 	
 }
 
 void ScanManualView::on_show() {
 
-}
+} */
 
 ScanStoredView::ScanStoredView(
 	NavigationView&, Rect parent_rect
 ) {
 	set_parent_rect(parent_rect);
-	//hidden(true);
+	hidden(true);
 	add_children({
 		&labels,
 		&text_cycle,
@@ -85,13 +100,13 @@ ScanStoredView::ScanStoredView(
 	});
 }
 
-void ScanStoredView::focus() {
+/* void ScanStoredView::focus() {
 	
 }
 
 void ScanStoredView::on_show() {
 
-}
+} */
 
 void ScanStoredView::text_set(std::string index_text) {
 	text_cycle.set(index_text);
@@ -113,11 +128,6 @@ ScannerThread::ScannerThread(
 }
 
 ScannerThread::~ScannerThread() {
-/* 	if( thread ) {
-		chThdTerminate(thread);
-		chThdWait(thread);
-		thread = nullptr;
-	} */
 	stop();
 }
 
@@ -166,7 +176,7 @@ void ScannerThread::run() {
 				if (frequency_index >= frequency_list_.size())
 					frequency_index = 0;
 			}
-			chThdSleepMilliseconds(50);  
+			chThdSleepMilliseconds(100);  //Was 50, searching for more precise scanning
 		}
 	}
 }
@@ -204,6 +214,7 @@ ScannerView::ScannerView(
 {
 	add_children({
 		&tab_view,
+		&view_mode,
 		&view_stored,		
 		&view_manual,
 		&rssi,
@@ -318,6 +329,9 @@ ScannerView::ScannerView(
 
 		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
 		description_list.clear();
+
+		def_step = view_manual.step_mode.selected_index_value();		//Use def_step from manual selector
+
 		description_list.push_back(
 			"M:" + to_string_short_freq(view_manual.frequency_range.min) + " > "
 	 		+ to_string_short_freq(view_manual.frequency_range.max) + " S:" 
@@ -373,11 +387,13 @@ ScannerView::ScannerView(
 				break; //No more space: Stop reading the txt file !
 			}		
 		}
+		tab_view.set_selected(1);	//Stored freqs, put focus on STORED scan tab
+		view_manual.step_mode.set_by_value(def_step); //Impose the last def_step into the manual step selector
 	} 
 	else 
 	{
 		view_stored.desc_set(" NO SCANNER .TXT FILE ..." );
-		tab_view.set_selected(1);	//Since no stored freqs, put focus on manual scan tab
+		tab_view.set_selected(2);	//Since no stored freqs, put focus on MANUAL scan tab
 	}
 	// COMMON
 	receiver_model.enable(); 

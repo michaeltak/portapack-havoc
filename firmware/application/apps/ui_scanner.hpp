@@ -46,17 +46,57 @@ enum modulation_type {
 string const mod_name[4] = {	"AM", "FM", "NFM", "ANY" };
 size_t const mod_step[4] = {	9000, 100000, 12500, 10000 };
 
+class ScanModeView : public View {
+public:
+	ScanModeView(NavigationView& nav, Rect parent_rect);
+
+private:
+	NavigationView& nav_;
+
+	Labels labels {
+		{ { 0, 0 * 16}, "MODE:", Color::light_grey() }
+
+	};
+
+	OptionsField field_mode {
+		{ 6 * 8, 0 * 16 },
+		4,
+		{
+			{ "AM", 0 },
+			{ "FM", 1 },
+			{ "NFM", 2 },
+		}
+	};
+
+};
+
 class ScanManualView : public View {
 public:
 	ScanManualView(NavigationView& nav, Rect parent_rect);
 	
 	jammer::jammer_range_t frequency_range { false, 0, 0 };  //perfect for manual scan task too...
 
-	void focus() override;
-	void on_show() override;
+	//void focus() override;
+	//void on_show() override;
+	OptionsField step_mode {
+		{ 5 * 8, 4 * 16 },
+		12,
+		{
+			{ "5Khz (SA AM)", 	5000 },
+			{ "9Khz (EU AM)", 	9000 },
+			{ "10Khz(US AM)", 	10000 },
+			{ "50Khz (FM1)", 	50000 },
+			{ "100Khz(FM2)", 	100000 },
+			{ "6.25khz(NFM)",	6250 },
+			{ "12.5khz(NFM)",	12500 },
+			{ "25khz (N1)",		25000 },
+			{ "250khz (N2)",	250000 },
+			{ "8.33khz(AIR)",	8330 }
+		}
+	};
 
 	Button button_manual_execute {
-		{ 9 * 8, 7 * 8, 12 * 8, 28 },
+		{ 19 * 8, 7 * 8, 12 * 8, 28 },
 		"EXECUTE"
 	};
 
@@ -66,8 +106,9 @@ private:
 	//ScannerView* scanner_view{ nullptr };
 
 	Labels labels {
-		{ { 2 * 8, 0 * 8}, "Start", Color::light_grey() },
-		{ { 23 * 8, 0 * 8 }, "Stop", Color::light_grey() },
+		{ { 3 * 8, 0 * 16 }, "Start", Color::light_grey() },
+		{ { 22 * 8, 0 * 16 }, "Stop", Color::light_grey() },
+		{ { 0, 4 * 16 }, "STEP:", Color::light_grey() }
 	};
 
 	Button button_manual_start {
@@ -79,7 +120,6 @@ private:
 		{ 19 * 8, 1 * 16, 11 * 8, 28 },
 		""
 	};
-
 };
 
 
@@ -87,8 +127,8 @@ class ScanStoredView : public View {
 public:
 	ScanStoredView(NavigationView& nav, Rect parent_rect);
 	
-	void focus() override;
-	void on_show() override;
+	// void focus() override;
+	// void on_show() override;
 	void text_set(std::string index_text);
 	void max_set(std::string max_text);
 	void desc_set(std::string description);
@@ -177,12 +217,14 @@ private:
 	const int32_t mod_type_;
 	Rect view_rect = { 0, 10 * 16, 240, 100 };
 	
+	ScanModeView view_mode { nav_, view_rect };
 	ScanStoredView view_stored { nav_, view_rect };
 	ScanManualView view_manual { nav_, view_rect };
 	
 	TabView tab_view {
-		{ "Stored", Color::white(), &view_stored },
-		{ "Manual", Color::white(), &view_manual },
+		{ "MODE", Color::white(), &view_mode },
+		{ "STORED", Color::white(), &view_stored },
+		{ "MANUAL", Color::white(), &view_manual },
 	};
 
 	const std::string title_;
