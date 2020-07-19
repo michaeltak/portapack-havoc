@@ -222,12 +222,6 @@ public:
 	ReceiversMenuView(NavigationView& nav);
 	std::string title() const override { return "Receivers"; };
 };
-
-class ScannerMenuView : public BtnGridView {
- public:
- 	ScannerMenuView(NavigationView& nav);
- 	std::string title() const override { return "Scanners"; };
- };
  
 class TransmittersMenuView : public BtnGridView {
 public:

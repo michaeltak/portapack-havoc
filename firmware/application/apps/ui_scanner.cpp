@@ -47,6 +47,10 @@ ScanModeView::ScanModeView (
 
 }
 
+void ScanModeView::on_show() {
+	field_mode.focus();			//Focus on mode change
+}
+
 ScanManualView::ScanManualView (
 	NavigationView& nav, Rect parent_rect
 ): nav_ { nav }
@@ -79,14 +83,6 @@ ScanManualView::ScanManualView (
 	};
 }
 
-/* void ScanManualView::focus() {
-	
-}
-
-void ScanManualView::on_show() {
-
-} */
-
 ScanStoredView::ScanStoredView(
 	NavigationView&, Rect parent_rect
 ) {
@@ -100,13 +96,6 @@ ScanStoredView::ScanStoredView(
 	});
 }
 
-/* void ScanStoredView::focus() {
-	
-}
-
-void ScanStoredView::on_show() {
-
-} */
 
 void ScanStoredView::text_set(std::string index_text) {
 	text_cycle.set(index_text);
@@ -176,7 +165,7 @@ void ScannerThread::run() {
 				if (frequency_index >= frequency_list_.size())
 					frequency_index = 0;
 			}
-			chThdSleepMilliseconds(100);  //Was 50, searching for more precise scanning
+			chThdSleepMilliseconds(50);  //50 is enough for reception stabilization, increase for more precise scanning ?
 		}
 	}
 }
@@ -184,7 +173,7 @@ void ScannerThread::run() {
 void ScannerView::handle_retune(uint32_t i) {
 	big_display_freq(frequency_list[i]);	//Show the big Freq
 	view_stored.text_set( to_string_dec_uint(i + 1,3));
-	if (description_list[i] != "#") view_stored.desc_set( description_list[i] );	//If this is a new description: show
+	if (description_list[i].size() > 0) view_stored.desc_set( description_list[i] );	//If this is a new description: show
 }
 
 void ScannerView::focus() {
@@ -206,11 +195,8 @@ void ScannerView::show_max() {		//show total number of freqs to scan inside stor
 }
 
 ScannerView::ScannerView(
-	NavigationView& nav,
-	const int32_t mod_type
-) : nav_ { nav }, 
-	title_ { mod_name[mod_type] + " SCANNER" },
-	mod_type_ { mod_type }
+	NavigationView& nav
+	) : nav_ { nav }
 {
 	add_children({
 		&tab_view,
@@ -223,6 +209,7 @@ ScannerView::ScannerView(
 		&field_vga,
 		&field_rf_amp,
 		&field_volume,
+		&field_bw,
 		&field_squelch,
 		&field_wait,
 		&big_display,
@@ -230,24 +217,9 @@ ScannerView::ScannerView(
 		&button_audio_app
 	});
 
-	
-	switch (mod_type) {
-	case NFM: 
-		add_children({&field_bw_NFM });
-		break;
-	case AM:
-		add_children({&field_bw_AM});
-		break;
-	case FM:  
-		add_children({&field_bw_FM});
-		break;
-	case ANY:
-		add_children({&field_bw_ANY	});
-		break;
-	}
+	def_step = change_mode(AM);	//Start on AM
+	view_mode.field_mode.set_by_value(AM);	//Reflect the mode into the manual selector
 
-	def_step = mod_step[mod_type];
-	std::string scanner_file = "SCANNER_" + mod_name[mod_type];
 	big_display.set_style(&style_green);	//Start with green color
 
 	button_pause.on_select = [this](Button&) {
@@ -271,48 +243,6 @@ ScannerView::ScannerView(
 		nav_.push<AnalogAudioView>();
 	};
 
-	//PRE-CONFIGURATION:
-	field_wait.on_change = [this](int32_t v) {	wait = v;	}; 	field_wait.set_value(5);
-	field_squelch.on_change = [this](int32_t v) {	squelch = v;	}; 	field_squelch.set_value(30);
-	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
-	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
-
-	switch (mod_type) {
-	case NFM:
-		baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
-		receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
-		field_bw_NFM.set_selected_index(2);
-		receiver_model.set_nbfm_configuration(field_bw_NFM.selected_index());
-		field_bw_NFM.on_change = [this](size_t n, OptionsField::value_t) { 	receiver_model.set_nbfm_configuration(n); };
-		receiver_model.set_sampling_rate(3072000);	receiver_model.set_baseband_bandwidth(1750000);	
-		break;
-	case AM:
-		baseband::run_image(portapack::spi_flash::image_tag_am_audio);
-		receiver_model.set_modulation(ReceiverModel::Mode::AMAudio);
-		field_bw_AM.set_selected_index(0);
-		receiver_model.set_am_configuration(field_bw_AM.selected_index());
-		field_bw_AM.on_change = [this](size_t n, OptionsField::value_t) { receiver_model.set_am_configuration(n);	};		
-		receiver_model.set_sampling_rate(2000000);receiver_model.set_baseband_bandwidth(2000000); 
-		break;
-	case FM:
-		baseband::run_image(portapack::spi_flash::image_tag_wfm_audio);
-		receiver_model.set_modulation(ReceiverModel::Mode::WidebandFMAudio);
-		field_bw_FM.set_selected_index(0);
-		receiver_model.set_wfm_configuration(field_bw_FM.selected_index());
-		field_bw_FM.on_change = [this](size_t n, OptionsField::value_t) {	receiver_model.set_wfm_configuration(n);};
-		receiver_model.set_sampling_rate(3072000);	receiver_model.set_baseband_bandwidth(2000000);	
-		break;
-	case ANY:
-		baseband::run_image(portapack::spi_flash::image_tag_am_audio);
-		receiver_model.set_modulation(ReceiverModel::Mode::AMAudio);
-		field_bw_ANY.set_selected_index(0);
-		receiver_model.set_am_configuration(field_bw_ANY.selected_index());
-		field_bw_ANY.on_change = [this](size_t n, OptionsField::value_t) { receiver_model.set_am_configuration(n);	};
-		receiver_model.set_sampling_rate(1000000);receiver_model.set_baseband_bandwidth(1000000);
-		break;			
-	default:	return;
-	}
-
 	view_manual.button_manual_execute.on_select = [this](Button&) {
 		if (!view_manual.frequency_range.min || !view_manual.frequency_range.max)
 			nav_.display_modal("Error", "Both START and STOP freqs\nneed a value");
@@ -320,12 +250,12 @@ ScannerView::ScannerView(
 		if (view_manual.frequency_range.min > view_manual.frequency_range.max)
 			nav_.display_modal("Error", "STOP freq\nis lower than START");
 
-		if (scan_thread->is_scanning()) 
-			scan_thread->set_scanning(false);
+		//if (scan_thread->is_scanning()) 
+		//	scan_thread->set_scanning(false);
 
 		//STOP SCANNER THREAD
 		//audio::output::stop();
-		scan_thread->stop();
+		scan_thread->stop();	//STOP SCANNER THREAD
 
 		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
 		description_list.clear();
@@ -341,20 +271,33 @@ ScannerView::ScannerView(
 		rf::Frequency frequency = view_manual.frequency_range.min;
 		while (frequency_list.size() < MAX_DB_ENTRY &&  frequency <= view_manual.frequency_range.max) { //add manual range				
 			frequency_list.push_back(frequency);
-			description_list.push_back("#");				//Token (keep showing the last description)
+			description_list.push_back("");				//If empty, will keep showing the last description
 			frequency+=def_step;
 		}
 
 		show_max();
-
-		//RESTART SCANNER THREAD
-		receiver_model.enable(); 
-		receiver_model.set_squelch_level(0);
-		scan_thread = std::make_unique<ScannerThread>(frequency_list);
+		start_scan_thread(); //RESTART SCANNER THREAD
 	};
 
+	view_mode.field_mode.on_change = [this](size_t, OptionsField::value_t v) {
+		if (scan_thread->is_scanning())
+			scan_thread->set_scanning(false); // WE STOP SCANNING
+		audio::output::stop();
+		scan_thread->stop();
+		receiver_model.disable();
+		baseband::shutdown();
+		chThdSleepMilliseconds(50);
+		change_mode(v);
+		start_scan_thread();
+	};
+	//PRE-CONFIGURATION:
+	field_wait.on_change = [this](int32_t v) {	wait = v;	}; 	field_wait.set_value(5);
+	field_squelch.on_change = [this](int32_t v) {	squelch = v;	}; 	field_squelch.set_value(30);
+	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
+	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
 	// LEARN FREQUENCIES
-	if ( load_freqman_file(scanner_file, database)  ) {
+	std::string scanner_txt = "SCANNER.TXT";
+	if ( load_freqman_file(scanner_txt, database)  ) {
 		for(auto& entry : database) {									// READ LINE PER LINE
 			if (frequency_list.size() < MAX_DB_ENTRY) {					//We got space!
 				if (entry.type == RANGE)  {								//RANGE	
@@ -370,7 +313,9 @@ ScannerView::ScannerView(
 					case AIRBAND:def_step= 8330;  	break ;
 					}
 					frequency_list.push_back(entry.frequency_a);		//Store starting freq and description
-					description_list.push_back("R:" + to_string_short_freq(entry.frequency_a) + " > " + to_string_short_freq(entry.frequency_b) + " S:" + to_string_short_freq(def_step));
+					description_list.push_back("R:" + to_string_short_freq(entry.frequency_a)
+						+ " > " + to_string_short_freq(entry.frequency_b)
+						+ " S:" + to_string_short_freq(def_step));
 					while (frequency_list.size() < MAX_DB_ENTRY && entry.frequency_a <= entry.frequency_b) { //add the rest of the range
 						entry.frequency_a+=def_step;
 						frequency_list.push_back(entry.frequency_a);
@@ -388,17 +333,14 @@ ScannerView::ScannerView(
 			}		
 		}
 		tab_view.set_selected(1);	//Stored freqs, put focus on STORED scan tab
-		view_manual.step_mode.set_by_value(def_step); //Impose the last def_step into the manual step selector
 	} 
 	else 
 	{
-		view_stored.desc_set(" NO SCANNER .TXT FILE ..." );
+		view_stored.desc_set(" NO SCANNER.TXT FILE ..." );
 		tab_view.set_selected(2);	//Since no stored freqs, put focus on MANUAL scan tab
 	}
-	// COMMON
-	receiver_model.enable(); 
-	receiver_model.set_squelch_level(0);
-	scan_thread = std::make_unique<ScannerThread>(frequency_list);
+	view_manual.step_mode.set_by_value(def_step); //Impose the default step into the manual step selector
+	start_scan_thread();
 }
 
 void ScannerView::big_display_freq(rf::Frequency f) {
@@ -445,5 +387,61 @@ void ScannerView::on_headphone_volume_changed(int32_t v) {
 	const auto new_volume = volume_t::decibel(v - 99) + audio::headphone::volume_range().max;
 	receiver_model.set_headphone_volume(new_volume);
 }
-	
+
+size_t ScannerView::change_mode(uint8_t new_mod) { //Before this, do a scan_thread->stop();  After this do a start_scan_thread()
+	using option_t = std::pair<std::string, int32_t>;
+	using options_t = std::vector<option_t>;
+	options_t bw;
+	field_bw.on_change = [this](size_t n, OptionsField::value_t) {	};
+
+	switch (new_mod) {
+	case NFM:	//bw 16k (2) default
+		bw.emplace_back("8k5", 0);
+		bw.emplace_back("11k", 0);
+		bw.emplace_back("16k", 0);			
+		field_bw.set_options(bw);
+
+		baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
+		receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
+		field_bw.set_selected_index(2);
+		receiver_model.set_nbfm_configuration(field_bw.selected_index());
+		field_bw.on_change = [this](size_t n, OptionsField::value_t) { 	receiver_model.set_nbfm_configuration(n); };
+		receiver_model.set_sampling_rate(3072000);	receiver_model.set_baseband_bandwidth(1750000);	
+		break;
+	case AM:
+		bw.emplace_back("DSB", 0);
+		bw.emplace_back("USB", 0);
+		bw.emplace_back("LSB", 0);
+		field_bw.set_options(bw);
+
+		baseband::run_image(portapack::spi_flash::image_tag_am_audio);
+		receiver_model.set_modulation(ReceiverModel::Mode::AMAudio);
+		field_bw.set_selected_index(0);
+		receiver_model.set_am_configuration(field_bw.selected_index());
+		field_bw.on_change = [this](size_t n, OptionsField::value_t) { receiver_model.set_am_configuration(n);	};		
+		receiver_model.set_sampling_rate(2000000);receiver_model.set_baseband_bandwidth(2000000); 
+		break;
+	case WFM:
+		bw.emplace_back("16k", 0);
+		field_bw.set_options(bw);
+
+		baseband::run_image(portapack::spi_flash::image_tag_wfm_audio);
+		receiver_model.set_modulation(ReceiverModel::Mode::WidebandFMAudio);
+		field_bw.set_selected_index(0);
+		receiver_model.set_wfm_configuration(field_bw.selected_index());
+		field_bw.on_change = [this](size_t n, OptionsField::value_t) {	receiver_model.set_wfm_configuration(n); };
+		receiver_model.set_sampling_rate(3072000);	receiver_model.set_baseband_bandwidth(2000000);	
+		break;
+	}
+
+	return mod_step[new_mod];
+
+}
+
+void ScannerView::start_scan_thread() {
+	receiver_model.enable(); 
+	receiver_model.set_squelch_level(0);
+	scan_thread = std::make_unique<ScannerThread>(frequency_list);
+}
+
 } /* namespace ui */

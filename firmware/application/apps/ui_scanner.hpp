@@ -35,122 +35,11 @@
 #define MAX_DB_ENTRY 400
 
 namespace ui {
+
+enum modulation_type { AM = 0,WFM,NFM };
 	
-enum modulation_type {
-	AM = 0,
-	FM,
-	NFM,
-	ANY
-};
- 
-string const mod_name[4] = {	"AM", "FM", "NFM", "ANY" };
-size_t const mod_step[4] = {	9000, 100000, 12500, 10000 };
-
-class ScanModeView : public View {
-public:
-	ScanModeView(NavigationView& nav, Rect parent_rect);
-
-private:
-	NavigationView& nav_;
-
-	Labels labels {
-		{ { 0, 0 * 16}, "MODE:", Color::light_grey() }
-
-	};
-
-	OptionsField field_mode {
-		{ 6 * 8, 0 * 16 },
-		4,
-		{
-			{ "AM", 0 },
-			{ "FM", 1 },
-			{ "NFM", 2 },
-		}
-	};
-
-};
-
-class ScanManualView : public View {
-public:
-	ScanManualView(NavigationView& nav, Rect parent_rect);
-	
-	jammer::jammer_range_t frequency_range { false, 0, 0 };  //perfect for manual scan task too...
-
-	//void focus() override;
-	//void on_show() override;
-	OptionsField step_mode {
-		{ 5 * 8, 4 * 16 },
-		12,
-		{
-			{ "5Khz (SA AM)", 	5000 },
-			{ "9Khz (EU AM)", 	9000 },
-			{ "10Khz(US AM)", 	10000 },
-			{ "50Khz (FM1)", 	50000 },
-			{ "100Khz(FM2)", 	100000 },
-			{ "6.25khz(NFM)",	6250 },
-			{ "12.5khz(NFM)",	12500 },
-			{ "25khz (N1)",		25000 },
-			{ "250khz (N2)",	250000 },
-			{ "8.33khz(AIR)",	8330 }
-		}
-	};
-
-	Button button_manual_execute {
-		{ 19 * 8, 7 * 8, 12 * 8, 28 },
-		"EXECUTE"
-	};
-
-private:
-	NavigationView& nav_;
-
-	//ScannerView* scanner_view{ nullptr };
-
-	Labels labels {
-		{ { 3 * 8, 0 * 16 }, "Start", Color::light_grey() },
-		{ { 22 * 8, 0 * 16 }, "Stop", Color::light_grey() },
-		{ { 0, 4 * 16 }, "STEP:", Color::light_grey() }
-	};
-
-	Button button_manual_start {
-		{ 0 * 8, 1 * 16, 11 * 8, 28 },
-		""
-	};
-
-	Button button_manual_stop {
-		{ 19 * 8, 1 * 16, 11 * 8, 28 },
-		""
-	};
-};
-
-
-class ScanStoredView : public View {
-public:
-	ScanStoredView(NavigationView& nav, Rect parent_rect);
-	
-	// void focus() override;
-	// void on_show() override;
-	void text_set(std::string index_text);
-	void max_set(std::string max_text);
-	void desc_set(std::string description);
-
-private:
-	Labels labels {
-		{ { 4 * 8, 2 * 16 }, "of", Color::light_grey() },
-	};
-
-	Text text_cycle {
-		{ 0, 2 * 16, 3 * 8, 16 },  
-	};
-
-	Text text_max {
-		{ 7 * 8, 2 * 16, 18 * 8, 16 },  
-	};
-	
-	Text desc_cycle {
-		{0, 3 * 16, 240, 16 },	   
-	};
-};
-
+string const mod_name[3] = {"AM", "WFM", "NFM"};
+size_t const mod_step[3] = {9000, 100000, 12500 };
 
 class ScannerThread {
 public:
@@ -180,13 +69,112 @@ private:
 	void run();
 };
 
+class ScanModeView : public View {
+public:
+	ScanModeView(NavigationView& nav, Rect parent_rect);
+
+	void on_show() override;
+
+	OptionsField field_mode {
+		{ 6 * 8, 0 * 16 },
+		6,
+		{
+			{ " AM  ", 0 },
+			{ " WFM ", 1 },
+			{ " NFM ", 2 },
+		}
+	};
+
+private:
+	NavigationView& nav_;
+
+	Labels labels {
+		{ { 0, 0 * 16}, "MODE:", Color::light_grey() }
+
+	};
+};
+
+class ScanManualView : public View {
+public:
+	ScanManualView(NavigationView& nav, Rect parent_rect);
+	
+	jammer::jammer_range_t frequency_range { false, 0, 0 };  //perfect for manual scan task too...
+
+	OptionsField step_mode {
+		{ 5 * 8, 4 * 16 },
+		12,
+		{
+			{ "5Khz (SA AM)", 	5000 },
+			{ "9Khz (EU AM)", 	9000 },
+			{ "10Khz(US AM)", 	10000 },
+			{ "50Khz (FM1)", 	50000 },
+			{ "100Khz(FM2)", 	100000 },
+			{ "6.25khz(NFM)",	6250 },
+			{ "12.5khz(NFM)",	12500 },
+			{ "25khz (N1)",		25000 },
+			{ "250khz (N2)",	250000 },
+			{ "8.33khz(AIR)",	8330 }
+		}
+	};
+
+	Button button_manual_execute {
+		{ 19 * 8, 7 * 8, 12 * 8, 28 },
+		"EXECUTE"
+	};
+
+private:
+	NavigationView& nav_;
+
+	//ScannerView* scanner_view{ nullptr };
+
+	Labels labels {
+		{ { 3 * 8, 0 * 16 }, "START", Color::light_grey() },
+		{ { 22 * 8, 0 * 16 }, "STOP", Color::light_grey() },
+		{ { 0, 4 * 16 }, "STEP:", Color::light_grey() }
+	};
+
+	Button button_manual_start {
+		{ 0 * 8, 1 * 16, 11 * 8, 28 },
+		""
+	};
+
+	Button button_manual_stop {
+		{ 19 * 8, 1 * 16, 11 * 8, 28 },
+		""
+	};
+};
+
+class ScanStoredView : public View {
+public:
+	ScanStoredView(NavigationView& nav, Rect parent_rect);
+	
+	// void focus() override;
+	// void on_show() override;
+	void text_set(std::string index_text);
+	void max_set(std::string max_text);
+	void desc_set(std::string description);
+
+private:
+	Labels labels {
+		{ { 4 * 8, 2 * 16 }, "of", Color::light_grey() },
+	};
+
+	Text text_cycle {
+		{ 0, 2 * 16, 3 * 8, 16 },  
+	};
+
+	Text text_max {
+		{ 7 * 8, 2 * 16, 18 * 8, 16 },  
+	};
+	
+	Text desc_cycle {
+		{0, 3 * 16, 240, 16 },	   
+	};
+};
 
 class ScannerView : public View {
 public:
-	ScannerView(
-		NavigationView& nav, 
-		int32_t mod_type
-	);
+	ScannerView(NavigationView& nav);
 	~ScannerView();
 	
 	void focus() override;
@@ -206,7 +194,7 @@ public:
 		.foreground = Color::green(),
 	};
 
-	std::string title() const override { return  title_; }
+	std::string title() const override { return "SCANNER"; };
 	std::vector<rf::Frequency> frequency_list{ };
 	std::vector<string> description_list { };
 
@@ -214,7 +202,7 @@ public:
 
 private:
 	NavigationView& nav_;
-	const int32_t mod_type_;
+
 	Rect view_rect = { 0, 10 * 16, 240, 100 };
 	
 	ScanModeView view_mode { nav_, view_rect };
@@ -227,8 +215,8 @@ private:
 		{ "MANUAL", Color::white(), &view_manual },
 	};
 
-	const std::string title_;
-
+	void start_scan_thread();
+	size_t change_mode(uint8_t mod_type);
 	void show_max();
 	void scan_pause();
 	void scan_resume();
@@ -267,48 +255,11 @@ private:
 		1,
 		' ',
 	};
-	
-	OptionsField field_bw_NFM {
-		{ 3 * 8, 3 * 16 },
-		4,
-		{
-			{ "8k5", 0 },
-			{ "11k", 0 },
-			{ "16k", 0 },
-			
-		}
-	};
 
-	OptionsField field_bw_AM {
+	OptionsField field_bw {
 		{ 3 * 8, 3 * 16 },
 		4,
-		{
-			{ "DSB ", 0 },
-			{ "USB ", 0 },
-			{ "LSB ", 0 },
-		}
-	};	
-
-	OptionsField field_bw_FM {
-		{ 3 * 8, 3 * 16 },
-		4,
-		{
-	/*		{ "3k", 0 },
-			{ "6k", 0 },
-			{ "8k5", 0 },
-			{ "11k", 0 },  */
-			{ "16k", 0 },
-		}
-	};
-
-	OptionsField field_bw_ANY {
-		{ 3 * 8, 3 * 16 },
-		4,
-		{
-			{ "DSB ", 0 },
-			{ "USB ", 0 },
-			{ "LSB ", 0 },
-		}
+		{ }
 	};		
 
 	NumberField field_squelch {
