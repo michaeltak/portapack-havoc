@@ -33,82 +33,6 @@ using namespace portapack;
 
 namespace ui {
 
-ScanModeView::ScanModeView (
-	NavigationView& nav, Rect parent_rect
-): nav_ { nav }
-{
-	set_parent_rect(parent_rect);
-	hidden(true);
-
-	add_children({
-		&labels,
-		&field_mode
-	});
-
-}
-
-void ScanModeView::on_show() {
-	field_mode.focus();			//Focus on mode change
-}
-
-ScanManualView::ScanManualView (
-	NavigationView& nav, Rect parent_rect
-): nav_ { nav }
-{
-	set_parent_rect(parent_rect);
-	hidden(true);
-
-	add_children({
-		&labels,
-		&button_manual_start,
-		&button_manual_stop,
-		&step_mode,
-		&button_manual_execute
-	});
-
-	button_manual_start.on_select = [this, &nav](Button& button) {
-		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.min);
-		new_view->on_changed = [this, &button](rf::Frequency f) {
-			frequency_range.min = f;
-			button_manual_start.set_text(to_string_short_freq(f));
-		};
-	};
-	
-	button_manual_stop.on_select = [this, &nav](Button& button) {
-		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.max);
-		new_view->on_changed = [this, &button](rf::Frequency f) {
-			frequency_range.max = f;
-			button_manual_stop.set_text(to_string_short_freq(f));
-		};
-	};
-}
-
-ScanStoredView::ScanStoredView(
-	NavigationView&, Rect parent_rect
-) {
-	set_parent_rect(parent_rect);
-	hidden(true);
-	add_children({
-		&labels,
-		&text_cycle,
-		&text_max,
-		&desc_cycle,
-	});
-}
-
-
-void ScanStoredView::text_set(std::string index_text) {
-	text_cycle.set(index_text);
-}
-
-void ScanStoredView::max_set(std::string max_text) {
-	text_max.set(max_text);
-}
-
-void ScanStoredView::desc_set(std::string description) {
-	desc_cycle.set(description);
-}
-
 ScannerThread::ScannerThread(
 	std::vector<rf::Frequency> frequency_list
 ) : frequency_list_ {  std::move(frequency_list) }
@@ -171,14 +95,13 @@ void ScannerThread::run() {
 }
 
 void ScannerView::handle_retune(uint32_t i) {
-	big_display_freq(frequency_list[i]);	//Show the big Freq
-	view_stored.text_set( to_string_dec_uint(i + 1,3));
-	if (description_list[i].size() > 0) view_stored.desc_set( description_list[i] );	//If this is a new description: show
+	big_display.set(frequency_list[i]);	//Show the big Freq
+	text_cycle.set( to_string_dec_uint(i + 1,3) );
+	if (description_list[i].size() > 0) desc_cycle.set( description_list[i] );	//If this is a new description: show
 }
 
 void ScannerView::focus() {
-	//tab_view.focus();
-	field_lna.focus();
+	field_mode.focus();
 }
 
 ScannerView::~ScannerView() {
@@ -187,11 +110,11 @@ ScannerView::~ScannerView() {
 	baseband::shutdown();
 }
 
-void ScannerView::show_max() {		//show total number of freqs to scan inside stored tab
+void ScannerView::show_max() {		//show total number of freqs to scan
 	if (frequency_list.size() == MAX_DB_ENTRY)
-		view_stored.max_set( to_string_dec_uint(MAX_DB_ENTRY) + " (DB MAX!)");
+		text_max.set( "/ " + to_string_dec_uint(MAX_DB_ENTRY) + " (DB MAX!)");
 	else
-		view_stored.max_set( to_string_dec_uint(frequency_list.size()));
+		text_max.set( "/ " + to_string_dec_uint(frequency_list.size()));
 }
 
 ScannerView::ScannerView(
@@ -199,11 +122,6 @@ ScannerView::ScannerView(
 	) : nav_ { nav }
 {
 	add_children({
-		&tab_view,
-		&view_mode,
-		&view_stored,		
-		&view_manual,
-		&rssi,
 		&labels,
 		&field_lna,
 		&field_vga,
@@ -212,15 +130,40 @@ ScannerView::ScannerView(
 		&field_bw,
 		&field_squelch,
 		&field_wait,
+		&rssi,
+		&text_cycle,
+		&text_max,
+		&desc_cycle,
 		&big_display,
+		&button_manual_start,
+		&button_manual_stop,
+		&field_mode,
+		&step_mode,
+		&button_manual_execute,
 		&button_pause,
 		&button_audio_app
 	});
 
 	def_step = change_mode(AM);	//Start on AM
-	view_mode.field_mode.set_by_value(AM);	//Reflect the mode into the manual selector
+	field_mode.set_by_value(AM);	//Reflect the mode into the manual selector
 
 	big_display.set_style(&style_green);	//Start with green color
+
+	button_manual_start.on_select = [this, &nav](Button& button) {
+		auto new_view = nav_.push<FrequencyKeypadView>(frequency_range.min);
+		new_view->on_changed = [this, &button](rf::Frequency f) {
+			frequency_range.min = f;
+			button_manual_start.set_text(to_string_short_freq(f));
+		};
+	};
+	
+	button_manual_stop.on_select = [this, &nav](Button& button) {
+		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.max);
+		new_view->on_changed = [this, &button](rf::Frequency f) {
+			frequency_range.max = f;
+			button_manual_stop.set_text(to_string_short_freq(f));
+		};
+	};
 
 	button_pause.on_select = [this](Button&) {
 		if (scan_thread->is_userpause()) { 
@@ -243,11 +186,11 @@ ScannerView::ScannerView(
 		nav_.push<AnalogAudioView>();
 	};
 
-	view_manual.button_manual_execute.on_select = [this](Button&) {
-		if (!view_manual.frequency_range.min || !view_manual.frequency_range.max)
+	button_manual_execute.on_select = [this](Button&) {
+		if (!frequency_range.min || !frequency_range.max)
 			nav_.display_modal("Error", "Both START and STOP freqs\nneed a value");
 
-		if (view_manual.frequency_range.min > view_manual.frequency_range.max)
+		if (frequency_range.min > frequency_range.max)
 			nav_.display_modal("Error", "STOP freq\nis lower than START");
 
 		//if (scan_thread->is_scanning()) 
@@ -260,16 +203,16 @@ ScannerView::ScannerView(
 		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
 		description_list.clear();
 
-		def_step = view_manual.step_mode.selected_index_value();		//Use def_step from manual selector
+		def_step = step_mode.selected_index_value();		//Use def_step from manual selector
 
 		description_list.push_back(
-			"M:" + to_string_short_freq(view_manual.frequency_range.min) + " > "
-	 		+ to_string_short_freq(view_manual.frequency_range.max) + " S:" 
+			"M:" + to_string_short_freq(frequency_range.min) + " > "
+	 		+ to_string_short_freq(frequency_range.max) + " S:" 
 	 		+ to_string_short_freq(def_step)
 		);
 
-		rf::Frequency frequency = view_manual.frequency_range.min;
-		while (frequency_list.size() < MAX_DB_ENTRY &&  frequency <= view_manual.frequency_range.max) { //add manual range				
+		rf::Frequency frequency = frequency_range.min;
+		while (frequency_list.size() < MAX_DB_ENTRY &&  frequency <= frequency_range.max) { //add manual range				
 			frequency_list.push_back(frequency);
 			description_list.push_back("");				//If empty, will keep showing the last description
 			frequency+=def_step;
@@ -279,7 +222,7 @@ ScannerView::ScannerView(
 		start_scan_thread(); //RESTART SCANNER THREAD
 	};
 
-	view_mode.field_mode.on_change = [this](size_t, OptionsField::value_t v) {
+	field_mode.on_change = [this](size_t, OptionsField::value_t v) {
 		if (scan_thread->is_scanning())
 			scan_thread->set_scanning(false); // WE STOP SCANNING
 		audio::output::stop();
@@ -290,6 +233,7 @@ ScannerView::ScannerView(
 		change_mode(v);
 		start_scan_thread();
 	};
+
 	//PRE-CONFIGURATION:
 	field_wait.on_change = [this](int32_t v) {	wait = v;	}; 	field_wait.set_value(5);
 	field_squelch.on_change = [this](int32_t v) {	squelch = v;	}; 	field_squelch.set_value(30);
@@ -319,7 +263,7 @@ ScannerView::ScannerView(
 					while (frequency_list.size() < MAX_DB_ENTRY && entry.frequency_a <= entry.frequency_b) { //add the rest of the range
 						entry.frequency_a+=def_step;
 						frequency_list.push_back(entry.frequency_a);
-						description_list.push_back("#");				//Token (keep showing the last description)
+						description_list.push_back("");				//Token (keep showing the last description)
 					}
 				} else if ( entry.type == SINGLE)  {
 					frequency_list.push_back(entry.frequency_a);
@@ -332,19 +276,13 @@ ScannerView::ScannerView(
 				break; //No more space: Stop reading the txt file !
 			}		
 		}
-		tab_view.set_selected(1);	//Stored freqs, put focus on STORED scan tab
 	} 
 	else 
 	{
-		view_stored.desc_set(" NO SCANNER.TXT FILE ..." );
-		tab_view.set_selected(2);	//Since no stored freqs, put focus on MANUAL scan tab
+		desc_cycle.set(" NO SCANNER.TXT FILE ..." );
 	}
-	view_manual.step_mode.set_by_value(def_step); //Impose the default step into the manual step selector
+	step_mode.set_by_value(def_step); //Impose the default step into the manual step selector
 	start_scan_thread();
-}
-
-void ScannerView::big_display_freq(rf::Frequency f) {
-	big_display.set(f);
 }
 
 void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
