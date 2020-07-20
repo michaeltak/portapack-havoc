@@ -136,10 +136,10 @@ ScannerView::ScannerView(
 		&desc_cycle,
 		&big_display,
 		&button_manual_start,
-		&button_manual_stop,
+		&button_manual_end,
 		&field_mode,
 		&step_mode,
-		&button_manual_execute,
+		&button_manual_scan,
 		&button_pause,
 		&button_audio_app
 	});
@@ -157,11 +157,11 @@ ScannerView::ScannerView(
 		};
 	};
 	
-	button_manual_stop.on_select = [this, &nav](Button& button) {
+	button_manual_end.on_select = [this, &nav](Button& button) {
 		auto new_view = nav.push<FrequencyKeypadView>(frequency_range.max);
 		new_view->on_changed = [this, &button](rf::Frequency f) {
 			frequency_range.max = f;
-			button_manual_stop.set_text(to_string_short_freq(f));
+			button_manual_end.set_text(to_string_short_freq(f));
 		};
 	};
 
@@ -186,27 +186,19 @@ ScannerView::ScannerView(
 		nav_.push<AnalogAudioView>();
 	};
 
-	button_manual_execute.on_select = [this](Button&) {
-		if (!frequency_range.min || !frequency_range.max)
-			nav_.display_modal("Error", "Both START and STOP freqs\nneed a value");
-
-		if (frequency_range.min > frequency_range.max)
-			nav_.display_modal("Error", "STOP freq\nis lower than START");
-
-		//if (scan_thread->is_scanning()) 
-		//	scan_thread->set_scanning(false);
-
-		//STOP SCANNER THREAD
-		//audio::output::stop();
+	button_manual_scan.on_select = [this](Button&) {
+		if (!frequency_range.min || !frequency_range.max) {
+			nav_.display_modal("Error", "Both START and END freqs\nneed a value");
+		} else if (frequency_range.min > frequency_range.max) {
+			nav_.display_modal("Error", "END freq\nis lower than START");
+		} else {
 		scan_thread->stop();	//STOP SCANNER THREAD
-
-		frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
+		//frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
 		description_list.clear();
-
 		def_step = step_mode.selected_index_value();		//Use def_step from manual selector
 
 		description_list.push_back(
-			"M:" + to_string_short_freq(frequency_range.min) + " > "
+			"M:" + to_string_short_freq(frequency_range.min) + " >"
 	 		+ to_string_short_freq(frequency_range.max) + " S:" 
 	 		+ to_string_short_freq(def_step)
 		);
@@ -220,6 +212,7 @@ ScannerView::ScannerView(
 
 		show_max();
 		start_scan_thread(); //RESTART SCANNER THREAD
+		}
 	};
 
 	field_mode.on_change = [this](size_t, OptionsField::value_t v) {
@@ -240,7 +233,7 @@ ScannerView::ScannerView(
 	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
 	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
 	// LEARN FREQUENCIES
-	std::string scanner_txt = "SCANNER.TXT";
+	std::string scanner_txt = "SCANNER";
 	if ( load_freqman_file(scanner_txt, database)  ) {
 		for(auto& entry : database) {									// READ LINE PER LINE
 			if (frequency_list.size() < MAX_DB_ENTRY) {					//We got space!
@@ -258,7 +251,7 @@ ScannerView::ScannerView(
 					}
 					frequency_list.push_back(entry.frequency_a);		//Store starting freq and description
 					description_list.push_back("R:" + to_string_short_freq(entry.frequency_a)
-						+ " > " + to_string_short_freq(entry.frequency_b)
+						+ " >" + to_string_short_freq(entry.frequency_b)
 						+ " S:" + to_string_short_freq(def_step));
 					while (frequency_list.size() < MAX_DB_ENTRY && entry.frequency_a <= entry.frequency_b) { //add the rest of the range
 						entry.frequency_a+=def_step;
@@ -281,6 +274,7 @@ ScannerView::ScannerView(
 	{
 		desc_cycle.set(" NO SCANNER.TXT FILE ..." );
 	}
+	audio::output::stop();
 	step_mode.set_by_value(def_step); //Impose the default step into the manual step selector
 	start_scan_thread();
 }

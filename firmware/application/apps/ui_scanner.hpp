@@ -118,10 +118,9 @@ private:
 	Labels labels {
 		{ { 0 * 8, 0 * 16 }, "LNA:   VGA:   AMP:  VOL:", Color::light_grey() },
 		{ { 0 * 8, 1* 16 }, "BW:    SQUELCH:  /99 WAIT:", Color::light_grey() },
-		{ { 3 * 8, 10 * 16 }, "START", Color::light_grey() },
-		{ { 22 * 8, 10 * 16 }, "STOP", Color::light_grey() },
-		{ { 0, 14 * 16 }, "MODE:", Color::light_grey() },
-		{ { 0, 15 * 16 }, "STEP:", Color::light_grey() },
+		{ { 3 * 8, 10 * 16 }, "START        END     MANUAL", Color::light_grey() },
+		{ { 0 * 8, 14 * 16 }, "MODE:", Color::light_grey() },
+		{ { 11 * 8, 14 * 16 }, "STEP:", Color::light_grey() },
 	};
 	
 	LNAGainField field_lna {
@@ -192,13 +191,18 @@ private:
 		""
 	};
 
-	Button button_manual_stop {
-		{ 19 * 8, 11 * 16, 11 * 8, 28 },
+	Button button_manual_end {
+		{ 12 * 8, 11 * 16, 11 * 8, 28 },
 		""
 	};
 
+	Button button_manual_scan {
+		{ 24 * 8, 11 * 16, 6 * 8, 28 },
+		"SCAN"
+	};
+
 	OptionsField field_mode {
-		{ 6 * 8, 14 * 16 },
+		{ 5 * 8, 14 * 16 },
 		6,
 		{
 			{ " AM  ", 0 },
@@ -208,7 +212,7 @@ private:
 	};
 
 	OptionsField step_mode {
-		{ 5 * 8, 15 * 16 },
+		{ 17 * 8, 14 * 16 },
 		12,
 		{
 			{ "5Khz (SA AM)", 	5000 },
@@ -222,11 +226,6 @@ private:
 			{ "250khz (N2)",	250000 },
 			{ "8.33khz(AIR)",	8330 }
 		}
-	};
-
-	Button button_manual_execute {
-		{ 19 * 8, 14 * 16, 12 * 8, 28 },
-		"EXECUTE"
 	};
 
 	Button button_pause {
