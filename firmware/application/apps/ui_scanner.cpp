@@ -193,7 +193,7 @@ ScannerView::ScannerView(
 			nav_.display_modal("Error", "END freq\nis lower than START");
 		} else {
 		scan_thread->stop();	//STOP SCANNER THREAD
-		//frequency_list.clear(); //This shouldn't be necessary since it was moved inside scanner at beginning
+		frequency_list.clear();
 		description_list.clear();
 		def_step = step_mode.selected_index_value();		//Use def_step from manual selector
 
