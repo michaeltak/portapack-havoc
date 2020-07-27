@@ -27,6 +27,8 @@
 #include "ui_font_fixed_8x16.hpp"
 #include "freqman.hpp"
 #include "analog_audio_app.hpp"
+#include "audio.hpp"
+#include "ui_mictx.hpp"
 
 
 #define MAX_DB_ENTRY 500
@@ -53,6 +55,8 @@ public:
 	void set_freq_lock(const uint32_t v);
 	uint32_t is_freq_lock();
 
+	void set_freq_del(const uint32_t v);
+
 	void stop();
 
 	ScannerThread(const ScannerThread&) = delete;
@@ -67,6 +71,7 @@ private:
 	bool _scanning { true };
 	bool _userpause { false };
 	uint32_t _freq_lock { 0 };
+	uint32_t _freq_del { 0 };
 	static msg_t static_fn(void* arg);
 	void run();
 };
@@ -98,6 +103,12 @@ public:
 		.foreground = Color::green(),
 	};
 
+	const Style style_red {		//erasing freq
+		.font = font::fixed_8x16,
+		.background = Color::black(),
+		.foreground = Color::red(),
+	};
+
 	std::string title() const override { return "SCANNER"; };
 	std::vector<rf::Frequency> frequency_list{ };
 	std::vector<string> description_list { };
@@ -123,13 +134,14 @@ private:
 	uint32_t wait { 0 };
 	size_t	def_step { 0 };
 	freqman_db database { };
+	uint32_t current_index { 0 };
 	
 	Labels labels {
 		{ { 0 * 8, 0 * 16 }, "LNA:   VGA:   AMP:  VOL:", Color::light_grey() },
 		{ { 0 * 8, 1* 16 }, "BW:    SQUELCH:  /99 WAIT:", Color::light_grey() },
 		{ { 3 * 8, 10 * 16 }, "START        END     MANUAL", Color::light_grey() },
-		{ { 0 * 8, 14 * 16 }, "MODE:", Color::light_grey() },
-		{ { 11 * 8, 14 * 16 }, "STEP:", Color::light_grey() },
+		{ { 0 * 8, 27 * 8 }, "MODE:", Color::light_grey() },
+		{ { 11 * 8, 27 * 8 }, "STEP:", Color::light_grey() },
 	};
 	
 	LNAGainField field_lna {
@@ -211,7 +223,7 @@ private:
 	};
 
 	OptionsField field_mode {
-		{ 5 * 8, 14 * 16 },
+		{ 5 * 8, 27 * 8 },
 		6,
 		{
 			{ " AM  ", 0 },
@@ -221,7 +233,7 @@ private:
 	};
 
 	OptionsField step_mode {
-		{ 17 * 8, 14 * 16 },
+		{ 17 * 8, 27 * 8 },
 		12,
 		{
 			{ "5Khz (SA AM)", 	5000 },
@@ -238,13 +250,23 @@ private:
 	};
 
 	Button button_pause {
-		{ 12, 17 * 16, 96, 24 },
+		{ 12, 15 * 16, 96, 24 },
 		"PAUSE"
 	};
 
 	Button button_audio_app {
-		{ 124, 17 * 16, 96, 24 },
+		{ 124, 15 * 16, 96, 24 },
 		"AUDIO APP"
+	};
+
+		Button button_remove {
+		{ 12, 17 * 16, 96, 24 },
+		"DEL FREQ"
+	};
+
+	Button button_mic_app {
+		{ 124, 17 * 16, 96, 24 },
+		"MIC TX APP"
 	};
 	
 	std::unique_ptr<ScannerThread> scan_thread { };

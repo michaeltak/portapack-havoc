@@ -26,8 +26,6 @@
 #include "portapack_persistent_memory.hpp"
 #include "baseband_api.hpp"
 #include "string_format.hpp"
-#include "audio.hpp"
-
 
 using namespace portapack;
 
@@ -76,6 +74,10 @@ uint32_t ScannerThread::is_freq_lock() {
 	return _freq_lock;
 }
 
+void ScannerThread::set_freq_del(const uint32_t v) {
+	_freq_del = v;
+}
+
 msg_t ScannerThread::static_fn(void* arg) {
 	auto obj = static_cast<ScannerThread*>(arg);
 	obj->run();
@@ -83,35 +85,46 @@ msg_t ScannerThread::static_fn(void* arg) {
 }
 
 void ScannerThread::run() {
-	if (frequency_list_.size())	{				//IF THERE IS A FREQUENCY LIST ...	
+	if (frequency_list_.size())	{					//IF THERE IS A FREQUENCY LIST ...	
 		RetuneMessage message { };
 		uint32_t frequency_index = frequency_list_.size();
 		uint32_t freqlock_counter=0;
 		while( !chThdShouldTerminate() ) {
-			if (_scanning) {
-				if (_freq_lock == 0) {	//normal scanning 
+			if (_scanning) {						//Scanning
+				if (_freq_lock == 0) {				//normal scanning (not performing freq_lock)
 					frequency_index++;
 					if (frequency_index >= frequency_list_.size())
 						frequency_index = 0;		
 					receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);	// Retune
-				} else {
-					chThdSleepMilliseconds(25); //Extra time ?
 				}
-		
 				message.range = frequency_index;	//Inform freq (for coloring purposes also!)
 				EventDispatcher::send_message(message);
+			} 
+			else { 									//If not scanning, check for user asking to delete a freq:
+				if (_freq_del != 0) {				//There is a frequency to delete
+					for (uint16_t i = 0; i < frequency_list_.size(); i++) {
+						if (frequency_list_[i] == _freq_del) {
+							frequency_list_.erase(frequency_list_.begin() + i);
+							break;
+						}
+					}
+					_freq_del = 0;		//deleted.
+				}
+
 			}
-			chThdSleepMilliseconds(50);
+			chThdSleepMilliseconds(60);		//This value on 50, when scan resume, it does not stabilize for the next freq in list, it jumped one more ahead. 
+			//With 100 it worked fine but scanner is slow. This may need fixing 
 		}
 	}
 }
 
 void ScannerView::handle_retune(uint32_t i) {
+	current_index = i;
 	switch (scan_thread->is_freq_lock())
 	{
 	case 0:		//NO FREQ LOCK, ONGOING STANDARD SCANNING
 		text_cycle.set( to_string_dec_uint(i + 1,3) );
-		if (description_list[i].size() > 0) desc_cycle.set( description_list[i] );	//If this is a new description: show
+		if (description_list[current_index].size() > 0) desc_cycle.set( description_list[current_index] );	//If this is a new description: show
 		break;
 	case 1:
 		big_display.set_style(&style_yellow);	//STARTING LOCK FREQ
@@ -122,7 +135,7 @@ void ScannerView::handle_retune(uint32_t i) {
 	default:	//freq lock is checking the signal, do not update display
 		return;
 	}
-	big_display.set(frequency_list[i]);	//UPDATE the big Freq after 0, 1 or MAX_FREQ_LOCK (at least, for color synching)
+	big_display.set(frequency_list[current_index]);	//UPDATE the big Freq after 0, 1 or MAX_FREQ_LOCK (at least, for color synching)
 }
 
 void ScannerView::focus() {
@@ -166,7 +179,9 @@ ScannerView::ScannerView(
 		&step_mode,
 		&button_manual_scan,
 		&button_pause,
-		&button_audio_app
+		&button_audio_app,
+		&button_remove,
+		&button_mic_app
 	});
 
 	def_step = change_mode(AM);	//Start on AM
@@ -215,6 +230,32 @@ ScannerView::ScannerView(
 		scan_thread->stop();
 		nav_.pop();
 		nav_.push<AnalogAudioView>();
+	};
+
+	button_remove.on_select = [this](Button&) {
+		if (frequency_list.size() > current_index) {
+			if (scan_thread->is_scanning())
+				scan_thread->set_scanning(false);
+			scan_thread->set_freq_del(frequency_list[current_index]);
+			description_list.erase(description_list.begin() + current_index);
+			frequency_list.erase(frequency_list.begin() + current_index);
+			show_max();								//UPDATE new list size on screen
+			chThdSleepMilliseconds(300);			//"debouncing" pause so user take finger off 
+			timer = wait * 10;						//Unlock timer pause on_statistics_update
+			scan_thread->set_freq_lock(0); 			//Reset the scanner lock
+			if (scan_thread->is_userpause()) { 		//If user-paused, reset button and resume
+				button_pause.set_text("PAUSE");		//resume scanning (show button for pause)	
+				scan_thread->set_userpause(false);	//Signal user's will
+			}
+		}
+	};
+
+	button_mic_app.on_select = [this](Button&) {
+		if (scan_thread->is_scanning())
+		 	scan_thread->set_scanning(false);
+		scan_thread->stop();
+		nav_.pop();
+		nav_.push<MicTXView>();
 	};
 
 	button_manual_scan.on_select = [this](Button&) {
@@ -354,7 +395,7 @@ void ScannerView::scan_resume() {
 	if (!scan_thread->is_scanning()) {
 		audio::output::stop();
 		big_display.set_style(&style_grey);	//Back to grey color
-		scan_thread->set_scanning(true);   // WE RESCAN
+		scan_thread->set_scanning(true);   // RESUME!
 	}
 }
 
