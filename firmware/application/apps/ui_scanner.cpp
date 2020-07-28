@@ -21,9 +21,6 @@
  */
 
 #include "ui_scanner.hpp"
-#include "portapack_persistent_memory.hpp"
-#include "baseband_api.hpp"
-#include "string_format.hpp"
 
 using namespace portapack;
 
@@ -78,39 +75,40 @@ void ScannerThread::run() {
 	if (frequency_list_.size())	{					//IF THERE IS A FREQUENCY LIST ...	
 		RetuneMessage message { };
 		uint32_t frequency_index = frequency_list_.size();
+		bool restart_scan = false;					//Flag whenever scanning is restarting after a pause
 		while( !chThdShouldTerminate() ) {
-			if (_scanning) 
-			{						//Scanning
+			if (_scanning) {						//Scanning
 				if (_freq_lock == 0) {				//normal scanning (not performing freq_lock)
-					frequency_index++;
-					if (frequency_index >= frequency_list_.size())
-						frequency_index = 0;		
-					receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);	// Retune
-				}
+					if (!restart_scan) {			//looping at full speed
+						frequency_index++;
+						if (frequency_index >= frequency_list_.size())
+							frequency_index = 0;		
+						receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);	// Retune
+					}
+					else
+						restart_scan=false;			//Effectively skipping first retuning, giving system time
+				} 
 				message.range = frequency_index;	//Inform freq (for coloring purposes also!)
 				EventDispatcher::send_message(message);
 			} 
-			else 
-			{ 									//If not scanning, check for user asking to delete a freq:
-				if (_freq_del != 0) {			//There is a frequency to delete
+			else {									//NOT scanning 									
+				restart_scan=true;					//Flag the need for skipping a cycle when restarting scan
+				if (_freq_del != 0) {				//There is a frequency to delete
 					for (uint16_t i = 0; i < frequency_list_.size(); i++) {	//Search for the freq to delete
 						if (frequency_list_[i] == _freq_del) 
-						{						//found: Erase it
+						{							//found: Erase it
 							frequency_list_.erase(frequency_list_.begin() + i);
-							if (i==0)			//set scan index one place back to compensate
+							if (i==0)				//set scan index one place back to compensate
 								i=frequency_list_.size();
 							else
 								i--;
-							
 							break;
 						}
 					}
-					_freq_del = 0;		//deleted.
+					_freq_del = 0;					//deleted.
 				}
-
 			}
-			chThdSleepMilliseconds(60);		//This value on 50, when scan resume, it does not stabilize for the next freq in list, it jumped one more ahead. 
-			//With 100 it worked fine but scanner is slow. This may need fixing 
+			chThdSleepMilliseconds(50);				//Needed to (eventually) stabilize the receiver into new freq
 		}
 	}
 }
@@ -123,11 +121,11 @@ void ScannerView::handle_retune(uint32_t i) {
 		current_index = i;		//since it is an ongoing scan, this is a new index
 		if (description_list[current_index].size() > 0) desc_cycle.set( description_list[current_index] );	//Show new description	
 		break;
-	case 1:
-		big_display.set_style(&style_yellow);	//STARTING LOCK FREQ
+	case 1:										//STARTING LOCK FREQ
+		big_display.set_style(&style_yellow);
 		break;
-	case MAX_FREQ_LOCK:
-		big_display.set_style(&style_green);	//FREQ LOCK FULL, GREEN!
+	case MAX_FREQ_LOCK:							//FREQ IS STRONG: GREEN and scanner will pause when on_statistics_update()
+		big_display.set_style(&style_green);
 		break;
 	default:	//freq lock is checking the signal, do not update display
 		return;
@@ -146,8 +144,10 @@ ScannerView::~ScannerView() {
 }
 
 void ScannerView::show_max() {		//show total number of freqs to scan
-	if (frequency_list.size() == MAX_DB_ENTRY)
+	if (frequency_list.size() == MAX_DB_ENTRY) {
+		text_max.set_style(&style_red);
 		text_max.set( "/ " + to_string_dec_uint(MAX_DB_ENTRY) + " (DB MAX!)");
+	}
 	else
 		text_max.set( "/ " + to_string_dec_uint(frequency_list.size()));
 }
@@ -290,7 +290,6 @@ ScannerView::ScannerView(
 		scan_thread->stop();
 		receiver_model.disable();
 		baseband::shutdown();
-		chThdSleepMilliseconds(50);
 		change_mode(v);
 		if ( userpause ) 						//If user-paused, resume
 			user_resume();
@@ -350,11 +349,11 @@ ScannerView::ScannerView(
 }
 
 void ScannerView::on_statistics_update(const ChannelStatistics& statistics) {
-	if ( !userpause ) 
+	if ( !userpause ) 									//Scanning not user-paused
 	{
 		if (timer >= (wait * 10) ) 
 		{
-			timer=0;
+			timer = 0;
 			scan_resume();
 		} 
 		else if (!timer) 
@@ -396,7 +395,7 @@ void ScannerView::scan_resume() {
 }
 
 void ScannerView::user_resume() {
-	timer = wait * 10;					//Unlock timer pause on_statistics_update ( will trigger a scan_resume() )
+	timer = wait * 10;					//Will trigger a scan_resume() on_statistics_update, also advancing to next freq.
 	button_pause.set_text("PAUSE");		//Show button for pause
 	userpause=false;					//Resume scanning
 }

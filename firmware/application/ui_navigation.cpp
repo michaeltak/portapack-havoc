@@ -50,7 +50,6 @@
 #include "ui_morse.hpp"
 //#include "ui_numbers.hpp"
 //#include "ui_nuoptix.hpp"
-//#include "ui_playdead.hpp"
 #include "ui_pocsag_tx.hpp"
 #include "ui_rds.hpp"
 #include "ui_remote.hpp"
@@ -108,7 +107,6 @@ SystemStatusView::SystemStatusView(
 		&title,
 		&button_speaker,
 		&button_stealth,
-		//&button_textentry,
 		&button_camera,
 		&button_sleep,
 		&button_bias_tee,
@@ -126,11 +124,6 @@ SystemStatusView::SystemStatusView(
 	
 	if (portapack::persistent_memory::stealth_mode())
 		button_stealth.set_foreground(ui::Color::green());
-	
-	/*if (!portapack::persistent_memory::ui_config_textentry())
-		button_textentry.set_bitmap(&bitmap_icon_keyboard);
-	else
-		button_textentry.set_bitmap(&bitmap_icon_unistroke);*/
 
 	refresh();
 	
@@ -150,10 +143,6 @@ SystemStatusView::SystemStatusView(
 	button_bias_tee.on_select = [this](ImageButton&) {
 		this->on_bias_tee();
 	};
-	
-	/*button_textentry.on_select = [this](ImageButton&) {
-		this->on_textentry();
-	};*/
 
 	button_camera.on_select = [this](ImageButton&) {
 		this->on_camera();
@@ -233,14 +222,14 @@ void SystemStatusView::on_stealth() {
 void SystemStatusView::on_bias_tee() {
 	if (!portapack::antenna_bias) {
 		nav_.display_modal("Bias voltage", "Enable DC voltage on\nantenna connector?", YESNO, [this](bool v) {
-				if (v) {
-					portapack::set_antenna_bias(true);
-					//radio::set_antenna_bias(true);
-					receiver_model.set_antenna_bias();
-					transmitter_model.set_antenna_bias();
-					refresh();
-				}
-			});
+			if (v) {
+				portapack::set_antenna_bias(true);
+				//radio::set_antenna_bias(true);
+				receiver_model.set_antenna_bias();
+				transmitter_model.set_antenna_bias();
+				refresh();
+			}
+		});
 	} else {
 		portapack::set_antenna_bias(false);
 		//radio::set_antenna_bias(false);
@@ -249,18 +238,6 @@ void SystemStatusView::on_bias_tee() {
 		refresh();
 	}
 }
-
-/*void SystemStatusView::on_textentry() {
-	uint8_t cfg;
-	
-	cfg = portapack::persistent_memory::ui_config_textentry();
-	portapack::persistent_memory::set_config_textentry(cfg ^ 1);
-	
-	if (!cfg)
-		button_textentry.set_bitmap(&bitmap_icon_unistroke);
-	else
-		button_textentry.set_bitmap(&bitmap_icon_keyboard);
-}*/
 
 void SystemStatusView::on_camera() {
 	auto path = next_filename_stem_matching_pattern(u"SCR_????");
@@ -473,7 +450,6 @@ SystemMenuView::SystemMenuView(NavigationView& nav) {
 		//{ "About", 		ui::Color::cyan(),			nullptr,				[&nav](){ nav.push<AboutView>(); } }
 	});
 	set_max_rows(2); 	// allow wider buttons
-	//set_highlighted(1);	// Startup selection
 }
 
 /* SystemView ************************************************************/
@@ -512,23 +488,11 @@ SystemView::SystemView(
 		this->status_view.set_back_enabled(!this->navigation_view.is_top());
 		this->status_view.set_title(new_view.title());
 	};
-
-	// portapack::persistent_memory::set_playdead_sequence(0x8D1);
-				
-	// Initial view
-	/*if ((portapack::persistent_memory::playing_dead() == 0x5920C1DF) ||		// Enable code
-		(portapack::persistent_memory::ui_config() & 16)) {					// Login option
-		navigation_view.push<PlayDeadView>();
-	} else {*/
 	
-		navigation_view.push<SystemMenuView>();
+	navigation_view.push<SystemMenuView>();
 		
-		if (portapack::persistent_memory::config_splash())
-			navigation_view.push<BMPView>();
-		//else
-		//	navigation_view.push<SystemMenuView>();
-			
-	//}
+	if (portapack::persistent_memory::config_splash())
+		navigation_view.push<BMPView>();
 }
 
 Context& SystemView::context() const {
@@ -554,23 +518,6 @@ BMPView::BMPView(NavigationView& nav) {
 void BMPView::paint(Painter&) {
 	portapack::display.drawBMP({(240 - 230) / 2, (320 - 50) / 2 - 10}, splash_bmp, false);
 }
-
-/* NotImplementedView ****************************************************/
-
-/*NotImplementedView::NotImplementedView(NavigationView& nav) {
-	button_done.on_select = [&nav](Button&){
-		nav.pop();
-	};
-
-	add_children({
-		&text_title,
-		&button_done,
-	});
-}
-
-void NotImplementedView::focus() {
-	button_done.focus();
-}*/
 
 /* ModalMessageView ******************************************************/
 

@@ -28,6 +28,9 @@
 #include "analog_audio_app.hpp"
 #include "audio.hpp"
 #include "ui_mictx.hpp"
+#include "portapack_persistent_memory.hpp"
+#include "baseband_api.hpp"
+#include "string_format.hpp"
 
 
 #define MAX_DB_ENTRY 500
