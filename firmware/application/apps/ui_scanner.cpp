@@ -65,6 +65,12 @@ void ScannerThread::set_freq_del(const uint32_t v) {
 	_freq_del = v;
 }
 
+void ScannerThread::change_scanning_direction() {
+	_fwd = !_fwd;
+	chThdSleepMilliseconds(300);	//Give some pause after reversing scanning direction
+
+}
+
 msg_t ScannerThread::static_fn(void* arg) {
 	auto obj = static_cast<ScannerThread*>(arg);
 	obj->run();
@@ -80,9 +86,16 @@ void ScannerThread::run() {
 			if (_scanning) {						//Scanning
 				if (_freq_lock == 0) {				//normal scanning (not performing freq_lock)
 					if (!restart_scan) {			//looping at full speed
-						frequency_index++;
-						if (frequency_index >= frequency_list_.size())
-							frequency_index = 0;		
+						if (_fwd) {					//forward
+							frequency_index++;
+							if (frequency_index >= frequency_list_.size())
+								frequency_index = 0;	
+
+						} else {					//reverse
+							frequency_index--;
+							if (frequency_index > frequency_list_.size())
+								frequency_index = frequency_list_.size();	
+						}
 						receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);	// Retune
 					}
 					else
@@ -176,15 +189,18 @@ ScannerView::ScannerView(
 		&step_mode,
 		&button_manual_scan,
 		&button_pause,
+		&button_dir,
 		&button_audio_app,
-		&button_remove,
-		&button_mic_app
+		&button_mic_app,
+		&button_add,
+		&button_remove
+
 	});
 
 	def_step = change_mode(AM);	//Start on AM
 	field_mode.set_by_value(AM);	//Reflect the mode into the manual selector
 
-	big_display.set_style(&style_grey);	//Start with gray color
+	//big_display.set_style(&style_grey);	//Start with gray color
 
 	//HELPER: Pre-setting a manual range, based on stored frequency
 	rf::Frequency stored_freq = persistent_memory::tuned_frequency();
@@ -220,16 +236,12 @@ ScannerView::ScannerView(
 	};
 
 	button_audio_app.on_select = [this](Button&) {
-		//if (scan_thread->is_scanning())
-		// 	scan_thread->set_scanning(false);
 		scan_thread->stop();
 		nav_.pop();
 		nav_.push<AnalogAudioView>();
 	};
 
-		button_mic_app.on_select = [this](Button&) {
-		//if (scan_thread->is_scanning())
-		// 	scan_thread->set_scanning(false);
+	button_mic_app.on_select = [this](Button&) {
 		scan_thread->stop();
 		nav_.pop();
 		nav_.push<MicTXView>();
@@ -294,6 +306,53 @@ ScannerView::ScannerView(
 		if ( userpause ) 						//If user-paused, resume
 			user_resume();
 		start_scan_thread();
+	};
+
+	button_dir.on_select = [this](Button&) {
+		scan_thread->change_scanning_direction();
+		if ( userpause ) 						//If user-paused, resume
+			user_resume();
+		big_display.set_style(&style_grey);		//Back to grey color
+	};
+
+	button_add.on_select = [this](Button&) {  //frequency_list[current_index]
+		File scanner_file;
+		auto result = scanner_file.open("FREQMAN/SCANNER.TXT");	//First search if freq is already in txt
+		if (!result.is_valid()) {
+			std::string frequency_to_add = "f=" 
+				+ to_string_dec_uint(frequency_list[current_index] / 1000) 
+				+ to_string_dec_uint(frequency_list[current_index] % 1000UL, 3, '0');
+			char one_char[1];		//Read it char by char
+			std::string line;		//and put read line in here
+			bool found=false;
+			for (size_t pointer=0; pointer < scanner_file.size();pointer++) {
+
+				scanner_file.seek(pointer);
+				scanner_file.read(one_char, 1);
+				if ((int)one_char[0] > 31) {			//ascii space upwards
+					line += one_char[0];				//Add it to the textline
+				}
+				else if (one_char[0] == '\n') {			//New Line
+					if (line == frequency_to_add) {
+						found=true;
+						break;
+					}
+					line.clear();						//Ready for next textline
+				}
+			}
+			if (found) {
+				nav_.display_modal("Error", "Frequency already exists");
+				big_display.set(frequency_list[current_index]);		//After showing an error
+			}
+			else {
+				auto result = scanner_file.append("FREQMAN/SCANNER.TXT"); //Second: append if it is not there
+				scanner_file.write_line(frequency_to_add);
+			}
+		} else
+		{
+			nav_.display_modal("Error", "Cannot open SCANNER.TXT\nfor appending freq.");
+			big_display.set(frequency_list[current_index]);		//After showing an error
+		}
 	};
 
 	//PRE-CONFIGURATION:
