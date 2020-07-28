@@ -22,7 +22,6 @@
 
 #include "ui.hpp"
 #include "receiver_model.hpp"
-
 #include "ui_receiver.hpp"
 #include "ui_font_fixed_8x16.hpp"
 #include "freqman.hpp"
@@ -49,9 +48,6 @@ public:
 	void set_scanning(const bool v);
 	bool is_scanning();
 
-	void set_userpause(const bool v);
-	bool is_userpause();
-
 	void set_freq_lock(const uint32_t v);
 	uint32_t is_freq_lock();
 
@@ -69,7 +65,6 @@ private:
 	Thread* thread { nullptr };
 	
 	bool _scanning { true };
-	bool _userpause { false };
 	uint32_t _freq_lock { 0 };
 	uint32_t _freq_del { 0 };
 	static msg_t static_fn(void* arg);
@@ -123,6 +118,7 @@ private:
 	void show_max();
 	void scan_pause();
 	void scan_resume();
+	void user_resume();
 
 	void on_statistics_update(const ChannelStatistics& statistics);
 	void on_headphone_volume_changed(int32_t v);
@@ -135,6 +131,7 @@ private:
 	size_t	def_step { 0 };
 	freqman_db database { };
 	uint32_t current_index { 0 };
+	bool userpause { false };
 	
 	Labels labels {
 		{ { 0 * 8, 0 * 16 }, "LNA:   VGA:   AMP:  VOL:", Color::light_grey() },
