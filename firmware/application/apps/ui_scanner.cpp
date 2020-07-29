@@ -92,9 +92,9 @@ void ScannerThread::run() {
 								frequency_index = 0;	
 
 						} else {					//reverse
-							frequency_index--;
-							if (frequency_index > frequency_list_.size())
+							if (frequency_index < 1)
 								frequency_index = frequency_list_.size();	
+							frequency_index--;
 						}
 						receiver_model.set_tuning_frequency(frequency_list_[frequency_index]);	// Retune
 					}
@@ -333,7 +333,7 @@ ScannerView::ScannerView(
 					line += one_char[0];				//Add it to the textline
 				}
 				else if (one_char[0] == '\n') {			//New Line
-					if (line == frequency_to_add) {
+					if (line.compare(0, frequency_to_add.size(),frequency_to_add) == 0) {
 						found=true;
 						break;
 					}
@@ -346,7 +346,7 @@ ScannerView::ScannerView(
 			}
 			else {
 				auto result = scanner_file.append("FREQMAN/SCANNER.TXT"); //Second: append if it is not there
-				scanner_file.write_line(frequency_to_add);
+				scanner_file.write_line(frequency_to_add + ",d=ADD FQ");
 			}
 		} else
 		{
