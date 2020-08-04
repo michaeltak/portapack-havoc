@@ -61,27 +61,23 @@ void MicTXView::configure_baseband() {
 
 void MicTXView::set_tx(bool enable) {
 	if (enable) {
-		if (rx_enabled)  //Turn off audio RX
-			rxaudio_off();
+		if (rx_enabled)  //If audio RX is enabled
+			rxaudio(false); //Then turn off audio RX
 		transmitting = true;
 		configure_baseband();
 		transmitter_model.enable();
 		portapack::pin_i2s0_rx_sda.mode(3);		// This is already done in audio::init but gets changed by the CPLD overlay reprogramming
-		//gpio_tx.write(1);
-		//led_tx.on();
 	} else {
 		if (transmitting && rogerbeep_enabled) {
 			baseband::request_beep();
-			transmitting = false;
-		} else {
-			transmitting = false;
-			configure_baseband();
-			transmitter_model.disable();
-			//gpio_tx.write(0);
-			//led_tx.off();
+			chThdSleepSeconds(1);	//Introduce a pause for the beep to finish
 		}
-		if (rx_enabled) 	//turn back on audio reception
-			rxaudio_on();
+		transmitting = false;
+		configure_baseband();
+		transmitter_model.disable();
+
+		if (rx_enabled)  //If audio RX is enabled and we've been transmitting
+			rxaudio(true); //Turn back on audio RX
 	}
 }
 
@@ -126,33 +122,30 @@ void MicTXView::on_tuning_frequency_changed(rf::Frequency f) {
 	transmitter_model.set_tuning_frequency(f);
 }
 
-void MicTXView::rxaudio_on() {
-	baseband::shutdown();
-	baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
-	//audio::output::start();
-	receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
-	receiver_model.set_sampling_rate(sampling_rate);
-	receiver_model.set_baseband_bandwidth(1750000);	
-	receiver_model.enable();
-	receiver_model.set_squelch_level(0);
-	receiver_model.set_tuning_frequency(field_frequency.value());
-	//portapack::set_speaker_mode(portapack::speaker_mode); //Now depends on speaker mode
-	audio::output::start();	
-}
-
-void MicTXView::rxaudio_off() {
-	audio::output::stop();
-	receiver_model.disable();
-	baseband::shutdown();
-	baseband::run_image(portapack::spi_flash::image_tag_mic_tx);
-	configure_baseband();
+void MicTXView::rxaudio(bool is_on) {
+	if (is_on) {
+		baseband::shutdown();
+		baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
+		receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
+		//receiver_model.set_sampling_rate(sampling_rate);
+		//receiver_model.set_baseband_bandwidth(1750000);	
+		receiver_model.enable();
+		//receiver_model.set_squelch_level(0);
+		receiver_model.set_tuning_frequency(field_frequency.value()); //probably this too can be commented out.
+		audio::output::start();	
+	} else {
+		audio::output::stop();
+		receiver_model.disable();
+		baseband::shutdown();
+		baseband::run_image(portapack::spi_flash::image_tag_mic_tx);
+	}
 }
 
 void MicTXView::on_headphone_volume_changed(int32_t v) {
-	if (rx_enabled) {
+	//if (rx_enabled) {
 		const auto new_volume = volume_t::decibel(v - 99) + audio::headphone::volume_range().max;
 		receiver_model.set_headphone_volume(new_volume);
-	}
+	//}
 }
 
 MicTXView::MicTXView(
@@ -180,9 +173,6 @@ MicTXView::MicTXView(
 		&text_ptt
 	});
 
-	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
-	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
-	
 	tone_keys_populate(options_tone_key);
 	options_tone_key.on_change = [this](size_t i, int32_t) {
 		tone_key_index = i;
@@ -206,6 +196,7 @@ MicTXView::MicTXView(
 		new_view->on_changed = [this](rf::Frequency f) {
 			this->on_tuning_frequency_changed(f);
 			this->field_frequency.set_value(f);
+			set_dirty();
 		};
 	};
 	
@@ -217,24 +208,14 @@ MicTXView::MicTXView(
 	check_va.on_select = [this](Checkbox&, bool v) {
 		va_enabled = v;
 		text_ptt.hidden(v);
+		check_rxactive.hidden(v); //hide or show the RX AUDIO
 		set_dirty();
 	};
-	check_va.set_value(false);
 	
 	check_rogerbeep.on_select = [this](Checkbox&, bool v) {
 		rogerbeep_enabled = v;
 	};
-	check_rogerbeep.set_value(false);
 
-	check_rxactive.set_value(false);
-	check_rxactive.on_select = [this](Checkbox&, bool v) {
-		rx_enabled = v;
-		if (rx_enabled) 
-			rxaudio_on();
-		 else 
-			rxaudio_off();
-	};
-	
 	field_va_level.on_change = [this](int32_t v) {
 		va_level = v;
 		vumeter.set_mark(v);
@@ -250,7 +231,17 @@ MicTXView::MicTXView(
 		decay_ms = v;
 	};
 	field_va_decay.set_value(1000);
-	
+
+	check_rxactive.on_select = [this](Checkbox&, bool v) {
+		rx_enabled = v;
+		check_va.hidden(v); //Hide or show voice activation
+		rxaudio(v);	//Can't do it in here due to timing constraint
+		set_dirty();	
+	};
+
+	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
+	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
+
 	transmitter_model.set_sampling_rate(sampling_rate);
 	transmitter_model.set_baseband_bandwidth(1750000);
 	
@@ -264,7 +255,7 @@ MicTXView::~MicTXView() {
 	audio::input::stop();
 	transmitter_model.disable();
 	if (rx_enabled) //Also turn off audio rx if enabled
-		rxaudio_off();
+		rxaudio(false);
 	baseband::shutdown();
 }
 

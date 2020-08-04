@@ -1757,13 +1757,13 @@ void VuMeter::paint(Painter& painter) {
 				lit = true;
 			
 			if (bar == 0)
-				color = lit ? Color::red() : Color::dark_red();
+				color = lit ? Color::red() : Color::dark_grey();
 			else if (bar == 1)
-				color = lit ? Color::orange() : Color::dark_orange();
+				color = lit ? Color::orange() : Color::dark_grey();
 			else if ((bar == 2) || (bar == 3))
-				color = lit ? Color::yellow() : Color::dark_yellow();
+				color = lit ? Color::yellow() : Color::dark_grey();
 			else
-				color = lit ? Color::green() : Color::dark_green();
+				color = lit ? Color::green() : Color::dark_grey();
 			
 			painter.fill_rectangle({ pos.x(), pos.y() + (Coord)(bar * (LED_height + 1)), width, (Coord)LED_height }, color);
 		}
@@ -1779,7 +1779,10 @@ void VuMeter::paint(Painter& painter) {
 			if (hold_timer) {
 				hold_timer--;
 			} else {
-				if (max) max--;	// Let it drop
+				if (max > 3) 
+					max = max-3;	// Let it drop (FASTER)
+				else
+					max = 0;	
 			}
 		}
 		

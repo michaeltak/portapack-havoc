@@ -55,11 +55,11 @@ public:
 			return false;
 	};
 	
-	std::string title() const override { return "Microphone TX"; };
+	std::string title() const override { return "Mic TX RX"; };
 
 private:
 	static constexpr uint32_t sampling_rate = 1536000U;
-	static constexpr uint32_t lcd_frame_duration = (256 * 1000UL) / 60;	// 1 frame @ 60fps in ms .8 fixed point
+	static constexpr uint32_t lcd_frame_duration = (256 * 1000UL) / 60;	// 1 frame @ 60fps in ms .8 fixed point  /60
 	
 	void update_vumeter();
 	void do_timing();
@@ -68,12 +68,11 @@ private:
 	void on_tx_progress(const bool done);
 	void configure_baseband();
 
-	void rxaudio_on();
-	void rxaudio_off();
+	void rxaudio(bool is_on);
 	void on_headphone_volume_changed(int32_t v);
 	
 	bool transmitting { false };
-	bool va_enabled { };
+	bool va_enabled { false };
 	bool rogerbeep_enabled { false };
 	bool rx_enabled { false };
 	uint32_t tone_key_index { };
@@ -89,17 +88,17 @@ private:
 		{ { 7 * 8, 1 * 8 }, "Mic. gain:", Color::light_grey() },
 		{ { 7 * 8, 4 * 8 }, "Frequency:", Color::light_grey() },
 		{ { 7 * 8, 6 * 8 }, "Bandwidth:   kHz", Color::light_grey() },
-		{ { 9 * 8, 13 * 8 }, "Level:   /255", Color::light_grey() },
-		{ { 9 * 8, 15 * 8 }, "Attack:   ms", Color::light_grey() },
-		{ { 9 * 8, 17 * 8 }, "Decay:    ms", Color::light_grey() },
+		{ { 11 * 8, 13 * 8 }, "Level:   /255", Color::light_grey() },
+		{ { 11 * 8, 15 * 8 }, "Attack:   ms", Color::light_grey() },
+		{ { 11 * 8, 17 * 8 }, "Decay:    ms", Color::light_grey() },
 		{ { 7 * 8, 21 * 8 }, "Tone key:", Color::light_grey() },
-		{ { 10 * 8, 32 * 8 }, "VOL:", Color::light_grey() }
+		{ { 11 * 8, 32 * 8 }, "VOL:", Color::light_grey() }
 	};
 	
 	VuMeter vumeter {
-		{ 1 * 8, 2 * 8, 5 * 8, 32 * 8 },
-		20,
-		false
+		{ 2 * 8, 2 * 8, 3 * 8, 32 * 8 },
+		16,
+		true
 	};
 	
 	OptionsField options_gain {
@@ -132,21 +131,21 @@ private:
 	};
 	
 	NumberField field_va_level {
-		{ 15 * 8, 13 * 8 },
+		{ 17 * 8, 13 * 8 },
 		3,
 		{ 0, 255 },
 		2,
 		' '
 	};
 	NumberField field_va_attack {
-		{ 16 * 8, 15 * 8 },
+		{ 18 * 8, 15 * 8 },
 		3,
 		{ 0, 999 },
 		20,
 		' '
 	};
 	NumberField field_va_decay {
-		{ 15 * 8, 17 * 8 },
+		{ 17 * 8, 17 * 8 },
 		4,
 		{ 0, 9999 },
 		100,
@@ -167,14 +166,14 @@ private:
 	};
 
 	Checkbox check_rxactive {
-		{ 7 * 8, 29 * 8 },
+		{ 7 * 8, (29 * 8) + 4 },
 		8,
-		"RX audio",
+		"RX audio listening",
 		false
 	};
 
 	NumberField field_volume {
-		{ 14 * 8, 32 * 8 },
+		{ 16 * 8, 32 * 8 },
 		2,
 		{ 0, 99 },
 		1,
