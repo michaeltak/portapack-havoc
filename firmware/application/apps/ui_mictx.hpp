@@ -86,24 +86,25 @@ private:
 	uint32_t decay_timer { 0 };
 	
 	Labels labels {
-		{ { 7 * 8, 1 * 8 }, "Mic. gain:", Color::light_grey() },
-		{ { 7 * 8, 4 * 8 }, "Frequency:", Color::light_grey() },
-		{ { 7 * 8, 6 * 8 }, "Bandwidth:   kHz", Color::light_grey() },
-		{ { 11 * 8, 13 * 8 }, "Level:   /255", Color::light_grey() },
-		{ { 11 * 8, 15 * 8 }, "Attack:   ms", Color::light_grey() },
-		{ { 11 * 8, 17 * 8 }, "Decay:    ms", Color::light_grey() },
-		{ { 7 * 8, 21 * 8 }, "Tone key:", Color::light_grey() },
-		{ { 11 * 8, 32 * 8 }, "VOL:", Color::light_grey() }
+		{ { 3 * 8, 1 * 8 }, "MIC. GAIN:", Color::light_grey() },
+		{ { 3 * 8, 3 * 8 }, "FREQUENCY:", Color::light_grey() },
+		{ { 3 * 8, 5 * 8 }, "BANDWIDTH:   kHz", Color::light_grey() },
+		{ { 7 * 8, 11 * 8 }, "LEVEL:   /255", Color::light_grey() },
+		{ { 6 * 8, 13 * 8 }, "ATTACK:   ms", Color::light_grey() },
+		{ { 7 * 8, 15 * 8 }, "DECAY:    ms", Color::light_grey() },
+		{ { 4 * 8, 18 * 8 }, "TONE KEY:", Color::light_grey() },
+		{ { 9 * 8, 30 * 8 }, "VOL:", Color::light_grey() },
+		{ { 5 * 8, 32 * 8 }, "SQUELCH:", Color::light_grey() }
 	};
 	
 	VuMeter vumeter {
-		{ 2 * 8, 2 * 8, 3 * 8, 32 * 8 },
+		{ 0 * 8, 1 * 8, 2 * 8, 33 * 8 },
 		12,
 		true
 	};
 	
 	OptionsField options_gain {
-		{ 17 * 8, 1 * 8 },
+		{ 13 * 8, 1 * 8 },
 		4,
 		{
 			{ "x0.5", 5 },
@@ -114,10 +115,10 @@ private:
 	};
 	
 	FrequencyField field_frequency {
-		{ 17 * 8, 4 * 8 },
+		{ 13 * 8, 3 * 8 },
 	};
 	NumberField field_bw {
-		{ 17 * 8, 6 * 8 },
+		{ 13 * 8, 5 * 8 },
 		3,
 		{ 0, 150 },
 		1,
@@ -125,28 +126,28 @@ private:
 	};
 	
 	Checkbox check_va {
-		{ 7 * 8, 10 * 8 },
+		{ 3 * 8, (9 * 8) - 4 },
 		7,
 		"Voice activation",
 		false
 	};
 	
 	NumberField field_va_level {
-		{ 17 * 8, 13 * 8 },
+		{ 13 * 8, 11 * 8 },
 		3,
 		{ 0, 255 },
 		2,
 		' '
 	};
 	NumberField field_va_attack {
-		{ 18 * 8, 15 * 8 },
+		{ 13 * 8, 13 * 8 },
 		3,
 		{ 0, 999 },
 		20,
 		' '
 	};
 	NumberField field_va_decay {
-		{ 17 * 8, 17 * 8 },
+		{ 13 * 8, 15 * 8 },
 		4,
 		{ 0, 9999 },
 		100,
@@ -154,33 +155,41 @@ private:
 	};
 	
 	OptionsField options_tone_key {
-		{ 7 * 8, 23 * 8 },
+		{ 10 * 8, 20 * 8 },
 		23,
 		{ }
 	};
 
 	Checkbox check_rogerbeep {
-		{ 7 * 8, 26 * 8 },
+		{ 3 * 8, 23 * 8 },
 		10,
 		"Roger beep",
 		false
 	};
 
 	Checkbox check_rxactive {
-		{ 7 * 8, (29 * 8) + 4 },
+		{ 3 * 8, (27 * 8) + 4 },
 		8,
 		"RX audio listening",
 		false
 	};
 
 	NumberField field_volume {
-		{ 16 * 8, 32 * 8 },
+		{ 13 * 8, 30 * 8 },
 		2,
 		{ 0, 99 },
 		1,
 		' ',
 	};
 	
+	NumberField field_squelch {
+		{ 13 * 8, 32 * 8 },
+		2,
+		{ 0, 99 },
+		1,
+		' ',
+	};
+
 	Text text_ptt {
 		{ 7 * 8, 35 * 8, 16 * 8, 16 },
 		"PTT: RIGHT BUTTON"

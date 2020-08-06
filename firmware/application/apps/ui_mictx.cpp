@@ -75,7 +75,6 @@ void MicTXView::set_tx(bool enable) {
 			transmitting = false;
 			configure_baseband();
 			transmitter_model.disable();
-
 			if (rx_enabled)  //If audio RX is enabled and we've been transmitting
 				rxaudio(true); //Turn back on audio RX
 		}
@@ -130,34 +129,19 @@ void MicTXView::rxaudio(bool is_on) {
 		baseband::shutdown();
 		baseband::run_image(portapack::spi_flash::image_tag_nfm_audio);
 		receiver_model.set_modulation(ReceiverModel::Mode::NarrowbandFMAudio);
-		//receiver_model.set_sampling_rate(sampling_rate);
-		//receiver_model.set_baseband_bandwidth(1750000);	
+		//receiver_model.set_sampling_rate(sampling_rate); //**
+		//receiver_model.set_baseband_bandwidth(1750000);	//**
 		receiver_model.enable();
-		//receiver_model.set_squelch_level(0);
-		//receiver_model.set_tuning_frequency(field_frequency.value()); //probably this too can be commented out.
+		receiver_model.set_tuning_frequency(field_frequency.value()); //probably this too can be commented out.
 		audio::output::start();	
 
-	} else {
-		//audio::output::stop();
+	} else {	//These incredibly convoluted steps are required for the vumeter to reappear when stopping RX.
 		receiver_model.disable();
 		baseband::shutdown();
-		
 		baseband::run_image(portapack::spi_flash::image_tag_mic_tx);
-
-		//transmitter_model.enable();
-		//transmitter_model.set_sampling_rate(sampling_rate);
-		//transmitter_model.set_baseband_bandwidth(1750000);
-	
-		//configure_baseband();
-		//transmitter_model.disable();
-	
-		//audio::set_rate(audio::Rate::Hz_24000);
 		audio::input::start();
-
-		transmitter_model.enable();
-		
-		portapack::pin_i2s0_rx_sda.mode(3);		// This is already done in audio::init but gets changed by the CPLD overlay reprogramming
-		
+		transmitter_model.enable();		
+		portapack::pin_i2s0_rx_sda.mode(3);
 		transmitting = false;
 		configure_baseband();
 		transmitter_model.disable();
@@ -193,6 +177,7 @@ MicTXView::MicTXView(
 		&check_rogerbeep,
 		&check_rxactive,
 		&field_volume,
+		&field_squelch,
 		&text_ptt
 	});
 
@@ -230,9 +215,9 @@ MicTXView::MicTXView(
 	
 	check_va.on_select = [this](Checkbox&, bool v) {
 		va_enabled = v;
-		text_ptt.hidden(v);
-		check_rxactive.hidden(v); //hide or show the RX AUDIO
-		set_dirty();
+		text_ptt.hidden(v);			//hide / show PTT text
+		check_rxactive.hidden(v); 	//hide / show the RX AUDIO
+		set_dirty();				//Refresh display
 	};
 	
 	check_rogerbeep.on_select = [this](Checkbox&, bool v) {
@@ -260,13 +245,16 @@ MicTXView::MicTXView(
 		rx_enabled = v;
 		check_va.hidden(v); 	//Hide or show voice activation
 		rxaudio(v);				//Activate-Deactivate audio rx accordingly
-		set_dirty();
-		set_tx(false);  //euquiq, this needs to be deleted. just trying to get the vumeter when checbox rx enabled
-
+		set_dirty();			//Refresh interface
 	};
 
 	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);
 	field_volume.on_change = [this](int32_t v) { this->on_headphone_volume_changed(v);	};
+
+	field_squelch.on_change = [this](int32_t v) { 
+		receiver_model.set_squelch_level(100 - v);	
+	};
+	field_squelch.set_value(0);
 
 	transmitter_model.set_sampling_rate(sampling_rate);
 	transmitter_model.set_baseband_bandwidth(1750000);
