@@ -69,15 +69,16 @@ void MicTXView::set_tx(bool enable) {
 		portapack::pin_i2s0_rx_sda.mode(3);		// This is already done in audio::init but gets changed by the CPLD overlay reprogramming
 	} else {
 		if (transmitting && rogerbeep_enabled) {
-			baseband::request_beep();
-			chThdSleepSeconds(1);	//Introduce a pause for the beep to finish
-		}
-		transmitting = false;
-		configure_baseband();
-		transmitter_model.disable();
+			baseband::request_beep();	//Transmit the roger beep
+			transmitting = false;		//And flag the end of the transmission so ...
+		} else { // (if roger beep was enabled, this will be executed after the beep ends transmitting.
+			transmitting = false;
+			configure_baseband();
+			transmitter_model.disable();
 
-		if (rx_enabled)  //If audio RX is enabled and we've been transmitting
-			rxaudio(true); //Turn back on audio RX
+			if (rx_enabled)  //If audio RX is enabled and we've been transmitting
+				rxaudio(true); //Turn back on audio RX
+		}
 	}
 }
 
@@ -120,6 +121,8 @@ void MicTXView::do_timing() {
 
 void MicTXView::on_tuning_frequency_changed(rf::Frequency f) {
 	transmitter_model.set_tuning_frequency(f);
+	//if ( rx_enabled )
+		receiver_model.set_tuning_frequency(f); //Update freq also for RX
 }
 
 void MicTXView::rxaudio(bool is_on) {
@@ -131,13 +134,33 @@ void MicTXView::rxaudio(bool is_on) {
 		//receiver_model.set_baseband_bandwidth(1750000);	
 		receiver_model.enable();
 		//receiver_model.set_squelch_level(0);
-		receiver_model.set_tuning_frequency(field_frequency.value()); //probably this too can be commented out.
+		//receiver_model.set_tuning_frequency(field_frequency.value()); //probably this too can be commented out.
 		audio::output::start();	
+
 	} else {
-		audio::output::stop();
+		//audio::output::stop();
 		receiver_model.disable();
 		baseband::shutdown();
+		
 		baseband::run_image(portapack::spi_flash::image_tag_mic_tx);
+
+		//transmitter_model.enable();
+		//transmitter_model.set_sampling_rate(sampling_rate);
+		//transmitter_model.set_baseband_bandwidth(1750000);
+	
+		//configure_baseband();
+		//transmitter_model.disable();
+	
+		//audio::set_rate(audio::Rate::Hz_24000);
+		audio::input::start();
+
+		transmitter_model.enable();
+		
+		portapack::pin_i2s0_rx_sda.mode(3);		// This is already done in audio::init but gets changed by the CPLD overlay reprogramming
+		
+		transmitting = false;
+		configure_baseband();
+		transmitter_model.disable();
 	}
 }
 
@@ -233,10 +256,13 @@ MicTXView::MicTXView(
 	field_va_decay.set_value(1000);
 
 	check_rxactive.on_select = [this](Checkbox&, bool v) {
+		//vumeter.set_value(0);	//Start with a clean vumeter
 		rx_enabled = v;
-		check_va.hidden(v); //Hide or show voice activation
-		rxaudio(v);	//Can't do it in here due to timing constraint
-		set_dirty();	
+		check_va.hidden(v); 	//Hide or show voice activation
+		rxaudio(v);				//Activate-Deactivate audio rx accordingly
+		set_dirty();
+		set_tx(false);  //euquiq, this needs to be deleted. just trying to get the vumeter when checbox rx enabled
+
 	};
 
 	field_volume.set_value((receiver_model.headphone_volume() - audio::headphone::volume_range().max).decibel() + 99);

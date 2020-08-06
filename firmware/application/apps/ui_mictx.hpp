@@ -24,6 +24,7 @@
 #define __UI_MICTX_H__
 
 #include "ui.hpp"
+#include "ui_painter.hpp"
 #include "ui_widget.hpp"
 #include "ui_navigation.hpp"
 #include "ui_receiver.hpp"
@@ -97,7 +98,7 @@ private:
 	
 	VuMeter vumeter {
 		{ 2 * 8, 2 * 8, 3 * 8, 32 * 8 },
-		16,
+		12,
 		true
 	};
 	
@@ -184,12 +185,13 @@ private:
 		{ 7 * 8, 35 * 8, 16 * 8, 16 },
 		"PTT: RIGHT BUTTON"
 	};
-	
+
+
 	MessageHandlerRegistration message_handler_lcd_sync {
 		Message::ID::DisplayFrameSync,
 		[this](const Message* const) {
-			this->update_vumeter();
 			this->do_timing();
+			this->update_vumeter();
 		}
 	};
 	
