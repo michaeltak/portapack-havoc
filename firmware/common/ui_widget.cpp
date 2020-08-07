@@ -571,7 +571,9 @@ Console::Console(
 }
 
 void Console::clear(bool clear_buffer = false) {
- 	if(clear_buffer) buffer.clear();
+	if(clear_buffer)
+		buffer.clear();
+		
 	display.fill_rectangle(
 		screen_rect(),
 		Color::black()
@@ -872,7 +874,6 @@ bool Button::on_touch(const TouchEvent event) {
 	case TouchEvent::Type::Start:
 		set_highlighted(true);
 		set_dirty();
-		
 		return true;
 
 
@@ -1025,25 +1026,26 @@ bool NewButton::on_key(const KeyEvent key) {
 	return false;
 }
 
-//bool NewButton::on_touch(const TouchEvent event) {
-//	switch(event.type) {
-//	case TouchEvent::Type::Start:
-//		set_highlighted(true);
-//		set_dirty();
-//		return true;
-//
-//	case TouchEvent::Type::End:
-//		set_highlighted(false);
-//		set_dirty();
-//		if( on_select ) {
-//			on_select();
-//		}
-//		return true;
-//
-//	default:
-//		return false;
-//	}
-//}
+bool NewButton::on_touch(const TouchEvent event) {
+	switch(event.type) {
+	case TouchEvent::Type::Start:
+		set_highlighted(true);
+		set_dirty();
+		return true;
+
+
+	case TouchEvent::Type::End:
+		set_highlighted(false);
+		set_dirty();
+		if( on_select ) {
+			on_select();
+		}
+		return true;
+
+	default:
+		return false;
+	}
+}
 
 /* Image *****************************************************************/
 
@@ -1779,10 +1781,7 @@ void VuMeter::paint(Painter& painter) {
 			if (hold_timer) {
 				hold_timer--;
 			} else {
-				if (max > 3) 
-					max = max-3;	// Let it drop (FASTER)
-				else
-					max = 0;	
+				if (max) max--;	// Let it drop
 			}
 		}
 		
