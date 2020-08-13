@@ -22,6 +22,7 @@
 
 #include "sonde_packet.hpp"
 #include "string_format.hpp"
+#include <cstring>
 
 namespace sonde {
 
@@ -36,6 +37,7 @@ namespace sonde {
 #define pos_GPSecefX  0x110	//0x114  // 4 byte
 #define pos_GPSecefY  0x114	//0x118  // 4 byte
 #define pos_GPSecefZ  0x118	//0x11C  // 4 byte
+#define M_PI 3.1415926535897932384626433832795  //3.1416 //(3.1415926535897932384626433832795)
 
 Packet::Packet(
 	const baseband::Packet& packet,
@@ -96,14 +98,10 @@ uint32_t Packet::GPS_altitude() const {
 	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
 		return (reader_bi_m.read(22 * 8, 32) / 1000) - 48;
 	else if (type_ == Type::Vaisala_RS41_SG) {
-		uint32_t altitude_ecef = 0;
-		for (uint32_t i = 0; i < 4; i++)
-			altitude_ecef = (altitude_ecef << 8) + vaisala_descramble(pos_GPSecefZ + i);
-		return (altitude_ecef / 1000) - 48;
+		Vaisala_pos_t result = ecef_to_gps();
+		const float alt = result.alt;
+		return alt;
 		
-		// TODO: and a bunch of maths (see ecef2elli() from RS1729)
-		// euquiq: alt, alt adn Long needs o be decoded at the same time. Since the formula uses apparently all three variables.
-		//return 0;
 	} else
 		return 0;	// Unknown
 }
@@ -111,16 +109,22 @@ uint32_t Packet::GPS_altitude() const {
 float Packet::GPS_latitude() const {
 	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
 		return reader_bi_m.read(14 * 8, 32) / ((1ULL << 32) / 360.0);
-	//else if (type_ == Type::Vaisala_RS41_SG)
-	//	return vaisala_descramble();
-	else
+	else if (type_ == Type::Vaisala_RS41_SG) {
+		Vaisala_pos_t result = ecef_to_gps();
+		const float lat = result.lat;
+		return lat;
+	} else
 		return 0;	// Unknown
 }
 
 float Packet::GPS_longitude() const {
 	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
 		return reader_bi_m.read(18 * 8, 32) / ((1ULL << 32) / 360.0);
-	else
+	else if (type_ == Type::Vaisala_RS41_SG) {
+		Vaisala_pos_t result = ecef_to_gps();
+		const float lon = result.lon;
+		return lon;
+	} else
 		return 0;	// Unknown
 }
 
@@ -177,21 +181,19 @@ std::string Packet::serial_number() const {
 }
 
 FormattedSymbols Packet::symbols_formatted() const {
-//	if (type() == Type::Vaisala_RS41_SG) {	//Euquiq: now we distinguish different types
+	if (type() == Type::Vaisala_RS41_SG) {	//Euquiq: now we distinguish different types
 		uint32_t bytes = packet_.size() / 8;  //Need the byte amount, which if full, it SHOULD be 320 size() should return 2560
 		std::string hex_data;
 		std::string hex_error;
 		hex_data.reserve(bytes * 2); //2 hexa chars per byte
-		hex_error.reserve(1);
-				
-		for (uint32_t i=0; i < bytes; i++)
-			hex_data += to_string_hex(vaisala_descramble(i),2); //2 should be
+		hex_error.reserve(1);				
+		for (uint32_t i=0; i < bytes; i++) //log will show the packet starting on the last 4 bytes from signature 93DF1A60
+			hex_data += to_string_hex(vaisala_descramble(i),2);
 		return { hex_data, hex_error };
 
-	// } else {
-		//return format_symbols(decoder_);
-	// }
-	
+	} else {
+		return format_symbols(decoder_);
+	}
 }
 
 bool Packet::crc_ok() const {
@@ -229,6 +231,86 @@ bool Packet::crc_ok_M10() const {
 
 	return ((cs & 0xFFFF) == ((packet_[0x63] << 8) | (packet_[0x63 + 1])));
 }
+
+uint32_t Packet::get_Vaisala_uint32(uint32_t pos) const {
+	uint32_t value = 0;
+	for (uint8_t i = 0; i < 4; i++)
+		value = (value << 8) + vaisala_descramble(pos + i);
+	return value;
+}
+
+/* Vaisala_pos_t Packet::ecef_to_gps() const {
+
+	Vaisala_pos_t result;
+
+	double_t ecef_X = get_Vaisala_uint32(pos_GPSecefX) / 100; //Vaisala param is in cm, pass it into meters, with decimals
+	double_t ecef_Y = get_Vaisala_uint32(pos_GPSecefY) / 100;
+	double_t ecef_Z = get_Vaisala_uint32(pos_GPSecefZ) / 100;
+
+	double_t 	a = 6378137.0,
+           		b = 6356752.31424518,
+           		e, ee;
+	double_t phi, lam, R, p, t;
+
+    e  = sqrt( (a*a - b*b) / (a*a) );
+    ee = sqrt( (a*a - b*b) / (b*b) );
+
+    lam = atan2( ecef_Y , ecef_X);
+
+    p = sqrt( ecef_X*ecef_X + ecef_Y*ecef_Y );
+
+    t = atan2( ecef_Z*a , p*b );
+
+    phi = atan2( ecef_Z + ee*ee * b * sin(t)*sin(t)*sin(t) ,
+                 p - e*e * a * cos(t)*cos(t)*cos(t) );
+
+    R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
+
+    result.alt = p / cos(phi) - R;
+    result.lat = phi*180/M_PI;
+    result.lon = lam*180/M_PI;
+
+	return result;
+} */
+
+Vaisala_pos_t Packet::ecef_to_gps() const {
+	Vaisala_pos_t result;
+	int32_t i, k;
+	uint8_t byte;	
+	uint8_t XYZ_bytes[4];
+	int32_t XYZ; // 32bit
+	double_t X[3];
+	for (k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
+		for (i = 0; i < 4; i++) {
+			byte = vaisala_descramble(pos_GPSecefX + (4*k) + i);
+			XYZ_bytes[i] = byte;
+		}
+		memcpy(&XYZ, XYZ_bytes, 4);
+        X[k] = XYZ / 100.0;
+    }
+
+	double_t a = 6378137.0,
+           b = 6356752.31424518,
+           e, ee;
+	double_t phi, lam, R, p, t;
+
+    e  = sqrt( (a*a - b*b) / (a*a) );
+    ee = sqrt( (a*a - b*b) / (b*b) );
+
+    lam = atan2( X[1] , X[0] );
+    p = sqrt( X[0]*X[0] + X[1]*X[1] );
+    t = atan2( X[2]*a , p*b );
+    phi = atan2( X[2] + ee*ee * b * sin(t)*sin(t)*sin(t) ,
+                 p - e*e * a * cos(t)*cos(t)*cos(t) );
+    
+	R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
+
+    result.alt = p / cos(phi) - R;
+    result.lat = phi*180/M_PI;
+    result.lon = lam*180/M_PI;
+
+	return result;
+} 
 
 
 } /* namespace sonde */

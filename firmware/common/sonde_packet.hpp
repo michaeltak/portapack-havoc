@@ -32,6 +32,12 @@
 
 namespace sonde {
 
+	struct Vaisala_pos_t {
+		uint32_t alt;
+		float lat;
+		float lon;
+	};
+
 class Packet {
 public:
 	enum class Type : uint32_t {
@@ -75,7 +81,10 @@ private:
 		0xD0, 0xBC, 0xB4, 0xB6, 0x06, 0xAA, 0xF4, 0x23,
 		0x78, 0x6E, 0x3B, 0xAE, 0xBF, 0x7B, 0x4C, 0xC1
 	};
+
+	Vaisala_pos_t ecef_to_gps() const;
 	
+	uint32_t get_Vaisala_uint32(uint32_t pos) const;
 	uint8_t vaisala_descramble(uint32_t pos) const;
 
 	const baseband::Packet packet_;
