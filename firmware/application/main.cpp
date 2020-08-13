@@ -171,7 +171,7 @@ int main(void) {
 
 		event_loop();
 
-		sdcDisconnect(&SDCD1);
+		sdcDisconnect(&SDCD1);	//euquiq: means that when starting hackrf mode, the sdcard is "ejected"
 		sdcStop(&SDCD1);
 
 		portapack::shutdown();

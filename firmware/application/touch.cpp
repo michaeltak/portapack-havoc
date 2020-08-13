@@ -95,9 +95,19 @@ void Manager::feed(const Frame& frame) {
 	// TODO: Separate threshold to gate coordinates for filtering?
 	if( touch_raw ) {
 		const auto metrics = calculate_metrics(frame);
-
 		// TODO: Add touch pressure hysteresis?
-		touch_pressure = (metrics.r < r_touch_threshold);
+		//uint32_t sensitivity_level = persistent_memory::touchsensible();
+		switch (persistent_memory::touchsensible()) {
+		case 2:
+			touch_pressure = (metrics.r < 480);
+			break;
+		case 3:
+			touch_pressure = (metrics.r < 320);
+			break;
+		default:
+			touch_pressure = (metrics.r < 640);
+		}
+
 		if( touch_pressure ) {
 			filter_x.feed(metrics.x * 1024);
 			filter_y.feed(metrics.y * 1024);

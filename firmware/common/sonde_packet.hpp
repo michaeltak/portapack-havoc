@@ -76,13 +76,14 @@ private:
 		0x78, 0x6E, 0x3B, 0xAE, 0xBF, 0x7B, 0x4C, 0xC1
 	};
 	
-	//uint8_t vaisala_descramble(const uint32_t pos);
+	uint8_t vaisala_descramble(uint32_t pos) const;
 
 	const baseband::Packet packet_;
 	const BiphaseMDecoder decoder_;
 	const FieldReader<BiphaseMDecoder, BitRemapNone> reader_bi_m;
 	Type type_;
 
+	using packetReader = FieldReader<baseband::Packet, BitRemapByteReverse>; //baseband::Packet instead of BiphaseMDecoder
 	bool crc_ok_M10() const;
 };
 

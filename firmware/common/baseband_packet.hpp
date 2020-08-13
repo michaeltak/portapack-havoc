@@ -62,7 +62,7 @@ public:
 	}
 
 private:
-	std::bitset<2560> data { };
+	std::bitset<2560> data { }; //euquiq: 2560bits = 320bytes = standard packet size for radiosonde RS41
 	Timestamp timestamp_ { };
 	size_t count { 0 };
 };

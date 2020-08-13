@@ -232,6 +232,7 @@ public:
 	SystemMenuView(NavigationView& nav);
 private:
 	void hackrf_mode(NavigationView& nav);
+	void msc_mode(NavigationView& nav);
 };
 
 class SystemView : public View {

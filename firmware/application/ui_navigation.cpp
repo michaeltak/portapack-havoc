@@ -84,6 +84,9 @@
 #include "file.hpp"
 #include "png_writer.hpp"
 
+//#include "msc_disk.h"
+
+
 using portapack::receiver_model;
 using portapack::transmitter_model;
 
@@ -434,6 +437,16 @@ void SystemMenuView::hackrf_mode(NavigationView& nav) {
 	);
 }
 
+void SystemMenuView::msc_mode(NavigationView& nav) {
+	nav.push<ModalMessageView>("USB DISK mode", "This mode enables the USB\nfunctionality. Reset the\ndevice to get back.\n\nDo you want to Switch now?", YESNO,
+		[this](bool choice) {
+			if (choice) {
+				//mscDisk_init();
+			}
+		}
+	);
+}
+
 SystemMenuView::SystemMenuView(NavigationView& nav) {
 	add_items({
 		//{ "Play dead",	ui::Color::red(),			&bitmap_icon_playdead,	[&nav](){ nav.push<PlayDeadView>(); } },
@@ -447,6 +460,7 @@ SystemMenuView::SystemMenuView(NavigationView& nav) {
 		{ "Options", 	ui::Color::cyan(),			&bitmap_icon_setup,	  	[&nav](){ nav.push<SettingsMenuView>(); } },
 		{ "Debug",		ui::Color::light_grey(),	&bitmap_icon_debug,   	[&nav](){ nav.push<DebugMenuView>(); } },
 		{ "HackRF", 	ui::Color::cyan(),			&bitmap_icon_hackrf,	[this, &nav](){ hackrf_mode(nav); } },
+		{ "USB Disk", 	ui::Color::cyan(),			&bitmap_icon_hackrf,	[this, &nav](){ msc_mode(nav); } },
 		//{ "About", 		ui::Color::cyan(),			nullptr,				[&nav](){ nav.push<AboutView>(); } }
 	});
 	set_max_rows(2); 	// allow wider buttons

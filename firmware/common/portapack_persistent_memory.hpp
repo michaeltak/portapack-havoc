@@ -80,6 +80,9 @@ uint32_t config_backlight_timer();
 bool config_backbutton();
 bool config_speaker();
 
+uint32_t touchsensible();
+void set_touchsensible(const uint32_t new_value);
+
 void set_config_splash(bool v);
 void set_config_login(bool v);
 void set_config_backlight_timer(uint32_t i);
