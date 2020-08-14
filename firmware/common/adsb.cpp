@@ -332,25 +332,28 @@ adsb_vel decode_frame_velo(ADSBFrame& frame){
 	}
 
 	if(velo_type == 1 || velo_type == 2){ //Ground Speed
-		int32_t velo_ew = (((frame_data[5] & 0x03) << 8) | frame_data[6]) - 1;
-		int32_t velo_ns = ((frame_data[7] & 0x7f) << 3) | ((frame_data[8]) >> 5) - 1;
+		int32_t raw_ew = ((frame_data[5] & 0x03) << 8) | frame_data[6];
+ 		int32_t velo_ew = raw_ew - 1; //velocities are all offset by one (this is part of the spec)
+
+ 		int32_t raw_ns = ((frame_data[7] & 0x7f) << 3) | (frame_data[8] >> 5);
+ 		int32_t velo_ns = raw_ns - 1;
 
 		if (velo_type == 2){ // supersonic indicator so multiply by 4
 			velo_ew = velo_ew << 2;
 			velo_ns = velo_ns << 2;
 		}
 
-		if((frame_data[5]&4) >> 2) velo_ew *= -1; //check ew direction sign
-		if((frame_data[7]&0x80) >> 7) velo_ns *= -1; //check ns direction sign
+		if(frame_data[5]&0x04) velo_ew *= -1; //check ew direction sign
+ 		if(frame_data[7]&0x80) velo_ns *= -1; //check ns direction sign
 
 		velo.speed = sqrt(velo_ns*velo_ns + velo_ew*velo_ew);
-		
+
 		if(velo.speed){
 			//calculate heading in degrees from ew/ns velocities
 			int16_t heading_temp = (int16_t)(atan2(velo_ew,velo_ns) * 180.0 / pi); 
 			// We don't want negative values but a 0-360 scale. 
 			if (heading_temp < 0) heading_temp += 360.0;
-			velo.heading = (uint16_t)heading_temp;
+ 			velo.heading = (uint16_t)heading_temp;
 		}
 		
 	}else if(velo_type == 3 || velo_type == 4){ //Airspeed

@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2015 Jared Boone, ShareBrained Technology, Inc.
  * Copyright (C) 2017 Furrtek
@@ -131,8 +130,8 @@ public:
 	}
 
 	void set_angle(uint16_t new_angle){
-		angle_ = new_angle;
-	}
+ 		angle_ = new_angle;
+ 	}
 
 private:
 	void draw_bearing(const Point origin, const uint16_t angle, uint32_t size, const Color color);

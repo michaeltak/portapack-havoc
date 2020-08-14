@@ -23,6 +23,7 @@
 #include "sonde_packet.hpp"
 #include "string_format.hpp"
 #include <cstring>
+//#include <complex>
 
 namespace sonde {
 
@@ -35,9 +36,10 @@ namespace sonde {
 #define pos_GPSweek   0x091	//0x095  // 2 byte
 #define pos_GPSTOW    0x093	//0x097  // 4 byte
 #define pos_GPSecefX  0x110	//0x114  // 4 byte
-#define pos_GPSecefY  0x114	//0x118  // 4 byte
-#define pos_GPSecefZ  0x118	//0x11C  // 4 byte
-#define M_PI 3.1415926535897932384626433832795  //3.1416 //(3.1415926535897932384626433832795)
+#define pos_GPSecefY  0x114	//0x118  // 4 byte (not actually used since Y and Z are following X, and grabbed in that same loop)
+#define pos_GPSecefZ  0x118	//0x11C  // 4 byte (same as Y)
+
+#define PI 3.1415926535897932384626433832795  //3.1416 //(3.1415926535897932384626433832795)
 
 Packet::Packet(
 	const baseband::Packet& packet,
@@ -94,38 +96,45 @@ uint8_t Packet::vaisala_descramble(const uint32_t pos) const {
 	return value;
 };
 
-uint32_t Packet::GPS_altitude() const {
-	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
-		return (reader_bi_m.read(22 * 8, 32) / 1000) - 48;
-	else if (type_ == Type::Vaisala_RS41_SG) {
-		Vaisala_pos_t result = ecef_to_gps();
-		const float alt = result.alt;
-		return alt;
-		
-	} else
-		return 0;	// Unknown
-}
+GPS_data Packet::get_GPS_data() const {
+	GPS_data result;
+	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2)) {
 
-float Packet::GPS_latitude() const {
-	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
-		return reader_bi_m.read(14 * 8, 32) / ((1ULL << 32) / 360.0);
-	else if (type_ == Type::Vaisala_RS41_SG) {
-		Vaisala_pos_t result = ecef_to_gps();
-		const float lat = result.lat;
-		return lat;
-	} else
-		return 0;	// Unknown
-}
+		result.alt = (reader_bi_m.read(22 * 8, 32) / 1000) - 48;
+		result.lat = reader_bi_m.read(14 * 8, 32) / ((1ULL << 32) / 360.0);
+		result.lon = reader_bi_m.read(18 * 8, 32) / ((1ULL << 32) / 360.0);
 
-float Packet::GPS_longitude() const {
-	if ((type_ == Type::Meteomodem_M10) || (type_ == Type::Meteomodem_M2K2))
-		return reader_bi_m.read(18 * 8, 32) / ((1ULL << 32) / 360.0);
-	else if (type_ == Type::Vaisala_RS41_SG) {
-		Vaisala_pos_t result = ecef_to_gps();
-		const float lon = result.lon;
-		return lon;
-	} else
-		return 0;	// Unknown
+	} else if (type_ == Type::Vaisala_RS41_SG) {
+
+		uint8_t XYZ_bytes[4];
+		int32_t XYZ; // 32bit
+		double_t X[3];
+		for (int32_t k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
+			for (int32_t i = 0; i < 4; i++)		//each one is 4 bytes (32 bits)
+				XYZ_bytes[i] = vaisala_descramble(pos_GPSecefX + (4*k) + i);
+			memcpy(&XYZ, XYZ_bytes, 4);
+			X[k] = XYZ / 100.0;
+		}
+
+		double_t a = 6378137.0;
+		double_t b = 6356752.31424518;
+		double_t e  = sqrt( (a*a - b*b) / (a*a) );
+		double_t ee = sqrt( (a*a - b*b) / (b*b) );
+
+		double_t lam = atan2( X[1] , X[0] );
+		double_t p = sqrt( X[0]*X[0] + X[1]*X[1] );
+		double_t t = atan2( X[2]*a , p*b );
+		double_t phi = atan2( X[2] + ee*ee * b * sin(t)*sin(t)*sin(t) ,
+					p - e*e * a * cos(t)*cos(t)*cos(t) );
+
+		double_t R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
+
+		result.alt = p / cos(phi) - R;
+		result.lat = phi*180/PI;
+		result.lon = lam*180/PI;
+
+	}
+	return result;
 }
 
 uint32_t Packet::battery_voltage() const {
@@ -232,56 +241,54 @@ bool Packet::crc_ok_M10() const {
 	return ((cs & 0xFFFF) == ((packet_[0x63] << 8) | (packet_[0x63 + 1])));
 }
 
-uint32_t Packet::get_Vaisala_uint32(uint32_t pos) const {
-	uint32_t value = 0;
-	for (uint8_t i = 0; i < 4; i++)
-		value = (value << 8) + vaisala_descramble(pos + i);
-	return value;
-}
+/* GPS_data Packet::ecef_to_gps() const {
+ 	Vaisala_pos_t result;
+ 	int32_t i, k;
+ 	uint8_t byte;	
+ 	uint8_t XYZ_bytes[4];
+ 	int32_t XYZ; // 32bit
+ 	double_t X[3];
+ 	for (k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
+ 		for (i = 0; i < 4; i++) {
+ 			byte = vaisala_descramble(pos_GPSecefX + (4*k) + i);
+ 			XYZ_bytes[i] = byte;
+ 		}
+ 		memcpy(&XYZ, XYZ_bytes, 4);
+         X[k] = XYZ / 100.0;
+     }
+
+ 	double_t a = 6378137.0,
+            b = 6356752.31424518,
+            e, ee;
+ 	double_t phi, lam, R, p, t;
+
+     e  = sqrt( (a*a - b*b) / (a*a) );
+     ee = sqrt( (a*a - b*b) / (b*b) );
+
+     lam = atan2( X[1] , X[0] );
+     p = sqrt( X[0]*X[0] + X[1]*X[1] );
+     t = atan2( X[2]*a , p*b );
+     phi = atan2( X[2] + ee*ee * b * sin(t)*sin(t)*sin(t) ,
+                  p - e*e * a * cos(t)*cos(t)*cos(t) );
+
+ 	R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
+
+     result.alt = p / cos(phi) - R;
+     result.lat = phi*180/PI;
+     result.lon = lam*180/PI;
+
+ 	return result;
+ }  */
+
 
 /* Vaisala_pos_t Packet::ecef_to_gps() const {
-
 	Vaisala_pos_t result;
-
-	double_t ecef_X = get_Vaisala_uint32(pos_GPSecefX) / 100; //Vaisala param is in cm, pass it into meters, with decimals
-	double_t ecef_Y = get_Vaisala_uint32(pos_GPSecefY) / 100;
-	double_t ecef_Z = get_Vaisala_uint32(pos_GPSecefZ) / 100;
-
-	double_t 	a = 6378137.0,
-           		b = 6356752.31424518,
-           		e, ee;
-	double_t phi, lam, R, p, t;
-
-    e  = sqrt( (a*a - b*b) / (a*a) );
-    ee = sqrt( (a*a - b*b) / (b*b) );
-
-    lam = atan2( ecef_Y , ecef_X);
-
-    p = sqrt( ecef_X*ecef_X + ecef_Y*ecef_Y );
-
-    t = atan2( ecef_Z*a , p*b );
-
-    phi = atan2( ecef_Z + ee*ee * b * sin(t)*sin(t)*sin(t) ,
-                 p - e*e * a * cos(t)*cos(t)*cos(t) );
-
-    R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
-
-    result.alt = p / cos(phi) - R;
-    result.lat = phi*180/M_PI;
-    result.lon = lam*180/M_PI;
-
-	return result;
-} */
-
-Vaisala_pos_t Packet::ecef_to_gps() const {
-	Vaisala_pos_t result;
-	int32_t i, k;
 	uint8_t byte;	
 	uint8_t XYZ_bytes[4];
 	int32_t XYZ; // 32bit
 	double_t X[3];
-	for (k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
-		for (i = 0; i < 4; i++) {
+	for (int32_t k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
+		for (int32_t i = 0; i < 4; i++) {
 			byte = vaisala_descramble(pos_GPSecefX + (4*k) + i);
 			XYZ_bytes[i] = byte;
 		}
@@ -289,28 +296,30 @@ Vaisala_pos_t Packet::ecef_to_gps() const {
         X[k] = XYZ / 100.0;
     }
 
-	double_t a = 6378137.0,
-           b = 6356752.31424518,
-           e, ee;
-	double_t phi, lam, R, p, t;
-
-    e  = sqrt( (a*a - b*b) / (a*a) );
-    ee = sqrt( (a*a - b*b) / (b*b) );
+    double ea2 = EARTH_a2_b2 / (EARTH_a*EARTH_a),
+           eb2 = EARTH_a2_b2 / (EARTH_b*EARTH_b);
+    double phi, lam, R, p, t;
+    double sint, cost;
 
     lam = atan2( X[1] , X[0] );
+
     p = sqrt( X[0]*X[0] + X[1]*X[1] );
-    t = atan2( X[2]*a , p*b );
-    phi = atan2( X[2] + ee*ee * b * sin(t)*sin(t)*sin(t) ,
-                 p - e*e * a * cos(t)*cos(t)*cos(t) );
-    
-	R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
+    t = atan2( X[2]*EARTH_a , p*EARTH_b );
+
+    sint = sin(t);
+    cost = cos(t);
+
+    phi = atan2( X[2] + eb2 * EARTH_b * sint*sint*sint ,
+                 p - ea2 * EARTH_a * cost*cost*cost );
+
+    R = EARTH_a / sqrt( 1 - ea2*sin(phi)*sin(phi) );
 
     result.alt = p / cos(phi) - R;
-    result.lat = phi*180/M_PI;
-    result.lon = lam*180/M_PI;
+    result.lat = phi*180/pi;
+    result.lon = lam*180/pi;
 
 	return result;
-} 
+} */
 
 
 } /* namespace sonde */

@@ -32,10 +32,10 @@
 
 namespace sonde {
 
-	struct Vaisala_pos_t {
-		uint32_t alt;
-		float lat;
-		float lon;
+	struct GPS_data {
+		uint32_t alt { 0 };
+		float lat { 0 };
+		float lon { 0 };
 	};
 
 class Packet {
@@ -47,7 +47,7 @@ public:
 		Meteomodem_M2K2 = 3,
 		Vaisala_RS41_SG = 4,
 	};
-	
+
 	Packet(const baseband::Packet& packet, const Type type);
 
 	size_t length() const;
@@ -62,9 +62,7 @@ public:
 	std::string serial_number() const;
 	uint32_t battery_voltage() const;
 	
-	uint32_t GPS_altitude() const;
-	float GPS_latitude() const;
-	float GPS_longitude() const;
+	GPS_data get_GPS_data() const;
 
 	FormattedSymbols symbols_formatted() const;
 
@@ -82,9 +80,8 @@ private:
 		0x78, 0x6E, 0x3B, 0xAE, 0xBF, 0x7B, 0x4C, 0xC1
 	};
 
-	Vaisala_pos_t ecef_to_gps() const;
+	GPS_data ecef_to_gps() const;
 	
-	uint32_t get_Vaisala_uint32(uint32_t pos) const;
 	uint8_t vaisala_descramble(uint32_t pos) const;
 
 	const baseband::Packet packet_;
