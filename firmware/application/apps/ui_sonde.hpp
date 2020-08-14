@@ -68,7 +68,7 @@ private:
 	uint32_t target_frequency_ { 402700000 };
 	bool logging { false };
 	sonde::GPS_data gps_info;
-	std::string sonde_id = "?";
+	std::string sonde_id;
 	
 	Labels labels {
 		{ { 0 * 8, 2 * 16 }, "Signature:", Color::light_grey() },
