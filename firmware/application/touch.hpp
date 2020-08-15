@@ -40,6 +40,8 @@ constexpr sample_t sample_max = 1023;
 
 constexpr sample_t touch_threshold = sample_max / 5;
 
+static float r_touch_threshold { 0 };
+
 struct Samples {
 	sample_t xp;
 	sample_t xn;

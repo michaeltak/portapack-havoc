@@ -53,9 +53,6 @@ TouchCalibrationView::TouchCalibrationView(
 	button_cancel.on_select = [this](Button&){ this->on_cancel(); };
 	button_ok.on_select = [this](Button&){ this->on_ok(); };
 
-	//r_touch_threshold = 480;
-
-	//field_sensitivity.set_by_value(2);
 	field_sensitivity.set_by_value(persistent_memory::touchsensible());
 	adjust_sensitivity(field_sensitivity.selected_index_value());
 	field_sensitivity.on_change = [this](size_t, OptionsField::value_t v) {
@@ -182,7 +179,8 @@ void TouchCalibrationView::touch_complete() {
 void TouchCalibrationView::on_ok() {
 	if( phase == Phase::Success ) {
 		persistent_memory::set_touch_calibration(calibration);
-		persistent_memory::set_touchsensible(field_sensitivity.selected_index_value());
+		persistent_memory::set_touchsensible(field_sensitivity.selected_index_value()); //Save current sensitivity index	
+		touch::r_touch_threshold = r_touch_threshold; //Pass the sensitivity threshold into the touch routine	
 		nav.pop();
 	}
 	if( phase == Phase::Failure ) {

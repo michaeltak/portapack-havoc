@@ -85,29 +85,28 @@ const Calibration default_calibration() {
 };
 
 void Manager::feed(const Frame& frame) {
-	// touch_debounce.feed(touch_raw);
 	const auto touch_raw = frame.touch;
-	//const auto touch_stable = touch_debounce.state();
 	const auto touch_stable = frame.touch;
 	bool touch_pressure = false;
 
 	// Only feed coordinate averaging if there's a touch.
-	// TODO: Separate threshold to gate coordinates for filtering?
 	if( touch_raw ) {
 		const auto metrics = calculate_metrics(frame);
-		// TODO: Add touch pressure hysteresis?
-		//uint32_t sensitivity_level = persistent_memory::touchsensible();
-		switch (persistent_memory::touchsensible()) {
-		case 2:
-			touch_pressure = (metrics.r < 480);
-			break;
-		case 3:
-			touch_pressure = (metrics.r < 320);
-			break;
-		default:
-			touch_pressure = (metrics.r < 640);
+
+		if (!r_touch_threshold) {	//Assigns the correct value from persistent memory at startup
+			switch (persistent_memory::touchsensible()) { 
+			case 2:	//Enhanced
+				r_touch_threshold = 480;
+				break;
+			case 3:	//Extreme
+				r_touch_threshold = 320;
+				break;
+			default:	//standard
+				r_touch_threshold = 640;
+			}
 		}
 
+		touch_pressure = (metrics.r < r_touch_threshold);
 		if( touch_pressure ) {
 			filter_x.feed(metrics.x * 1024);
 			filter_y.feed(metrics.y * 1024);
