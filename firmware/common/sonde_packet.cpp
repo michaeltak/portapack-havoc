@@ -29,6 +29,10 @@ namespace sonde {
 
 //Defines for Vaisala RS41, from https://github.com/rs1729/RS/blob/master/rs41/rs41sg.c
 #define MASK_LEN 64
+
+//Following values include the 4 bytes less shift, consumed in detecting the header on proc_sonde
+#define block_status  0x35	//0x039  // 40 bytes
+#define block_gpspos  0x10E	//0x112  // 21 bytes
 #define pos_FrameNb   0x37	//0x03B  // 2 byte
 #define pos_SondeID   0x39	//0x03D  // 8 byte
 #define pos_Voltage   0x041	//0x045  // 3 bytes (but first one is the important one) voltage x 10 ie: 26 = 2.6v
@@ -208,8 +212,67 @@ FormattedSymbols Packet::symbols_formatted() const {
 bool Packet::crc_ok() const {
 	switch(type()) {
 	case Type::Meteomodem_M10:	return crc_ok_M10();
+	case Type::Vaisala_RS41_SG:	return crc_ok_RS41();
 	default:					return false;
 	}
+}
+
+
+//from 0x008 to 0x037 (48 bytes reed-solomon error correction data)
+//each data block has a 2 byte header, data, and 2 byte tail: 
+// 1st byte: block ID
+// 2nd byte: data length (without header or tail)
+// <data>
+// 2 bytes CRC16 over the data.
+bool Packet::crc_ok_RS41() const
+{
+	if (!crc16rs41(block_status))
+		return false;
+
+		if (!crc16rs41(block_gpspos))
+		return false;
+
+	return true;
+}
+
+//Checks CRC16 on a RS41 field:
+bool Packet::crc16rs41(uint32_t field_start) const
+{
+
+	int crc16poly = 0x1021;
+	int rem = 0xFFFF, b, j;
+	int xbyte;
+
+	uint32_t pos = field_start + 1;
+	uint8_t length = vaisala_descramble(pos);
+
+	if (pos + length + 2 > packet_.size() / 8)
+		return false; //Out of packet!
+
+	for (b = 0; b < length; b++)
+	{
+		pos++;
+		xbyte = vaisala_descramble(pos);
+		rem = rem ^ (xbyte << 8);
+		for (j = 0; j < 8; j++)
+		{
+			if (rem & 0x8000)
+			{
+				rem = (rem << 1) ^ crc16poly;
+			}
+			else
+			{
+				rem = (rem << 1);
+			}
+			rem &= 0xFFFF;
+		}
+	}
+	//Check calculated CRC against packet's one
+	pos++;
+	int crcok = vaisala_descramble(pos) | (vaisala_descramble(pos + 1) << 8);
+	if (crcok != rem)
+		return false;
+	return true;
 }
 
 bool Packet::crc_ok_M10() const {
@@ -241,85 +304,6 @@ bool Packet::crc_ok_M10() const {
 	return ((cs & 0xFFFF) == ((packet_[0x63] << 8) | (packet_[0x63 + 1])));
 }
 
-/* GPS_data Packet::ecef_to_gps() const {
- 	Vaisala_pos_t result;
- 	int32_t i, k;
- 	uint8_t byte;	
- 	uint8_t XYZ_bytes[4];
- 	int32_t XYZ; // 32bit
- 	double_t X[3];
- 	for (k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
- 		for (i = 0; i < 4; i++) {
- 			byte = vaisala_descramble(pos_GPSecefX + (4*k) + i);
- 			XYZ_bytes[i] = byte;
- 		}
- 		memcpy(&XYZ, XYZ_bytes, 4);
-         X[k] = XYZ / 100.0;
-     }
-
- 	double_t a = 6378137.0,
-            b = 6356752.31424518,
-            e, ee;
- 	double_t phi, lam, R, p, t;
-
-     e  = sqrt( (a*a - b*b) / (a*a) );
-     ee = sqrt( (a*a - b*b) / (b*b) );
-
-     lam = atan2( X[1] , X[0] );
-     p = sqrt( X[0]*X[0] + X[1]*X[1] );
-     t = atan2( X[2]*a , p*b );
-     phi = atan2( X[2] + ee*ee * b * sin(t)*sin(t)*sin(t) ,
-                  p - e*e * a * cos(t)*cos(t)*cos(t) );
-
- 	R = a / sqrt( 1 - e*e*sin(phi)*sin(phi) );
-
-     result.alt = p / cos(phi) - R;
-     result.lat = phi*180/PI;
-     result.lon = lam*180/PI;
-
- 	return result;
- }  */
-
-
-/* Vaisala_pos_t Packet::ecef_to_gps() const {
-	Vaisala_pos_t result;
-	uint8_t byte;	
-	uint8_t XYZ_bytes[4];
-	int32_t XYZ; // 32bit
-	double_t X[3];
-	for (int32_t k = 0; k < 3; k++) {		//Get X,Y,Z ECEF position from GPS
-		for (int32_t i = 0; i < 4; i++) {
-			byte = vaisala_descramble(pos_GPSecefX + (4*k) + i);
-			XYZ_bytes[i] = byte;
-		}
-		memcpy(&XYZ, XYZ_bytes, 4);
-        X[k] = XYZ / 100.0;
-    }
-
-    double ea2 = EARTH_a2_b2 / (EARTH_a*EARTH_a),
-           eb2 = EARTH_a2_b2 / (EARTH_b*EARTH_b);
-    double phi, lam, R, p, t;
-    double sint, cost;
-
-    lam = atan2( X[1] , X[0] );
-
-    p = sqrt( X[0]*X[0] + X[1]*X[1] );
-    t = atan2( X[2]*EARTH_a , p*EARTH_b );
-
-    sint = sin(t);
-    cost = cos(t);
-
-    phi = atan2( X[2] + eb2 * EARTH_b * sint*sint*sint ,
-                 p - ea2 * EARTH_a * cost*cost*cost );
-
-    R = EARTH_a / sqrt( 1 - ea2*sin(phi)*sin(phi) );
-
-    result.alt = p / cos(phi) - R;
-    result.lat = phi*180/pi;
-    result.lon = lam*180/pi;
-
-	return result;
-} */
 
 
 } /* namespace sonde */

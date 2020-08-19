@@ -485,6 +485,7 @@ size_t ScannerView::change_mode(uint8_t new_mod) { //Before this, do a scan_thre
 		bw.emplace_back("DSB", 0);
 		bw.emplace_back("USB", 0);
 		bw.emplace_back("LSB", 0);
+		bw.emplace_back("CW ", 0);
 		field_bw.set_options(bw);
 
 		baseband::run_image(portapack::spi_flash::image_tag_am_audio);

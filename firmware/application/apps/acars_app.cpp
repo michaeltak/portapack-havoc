@@ -118,9 +118,11 @@ void ACARSAppView::on_packet(const acars::Packet& packet) {
 		console_info = to_string_datetime(packet.received_at(), HMS);
 		console_info += " INVALID";		
 	} else {
-		//console_info = to_string_datetime(packet.received_at(), HMS) + ":";
-		console_info += to_string_bin(packet.read(0, 32), 32);
-		console_info += " REG:" + packet.registration_number();
+		console_info = to_string_datetime(packet.received_at(), HMS) + ": ";
+		// console_info += to_string_bin(packet.read(0, 32), 32);
+		// console_info += " REG:" + packet.registration_number();
+		console_info += packet.raw_content();
+
 	}
 	console.writeln(console_info);
 	

@@ -50,6 +50,8 @@ public:
 	uint8_t block_id() const;
 	std::string registration_number() const;
 
+	std::string raw_content() const;
+
 	uint32_t read(const size_t start_bit, const size_t length) const;
 	//std::string text(const size_t start_bit, const size_t character_count) const;
 

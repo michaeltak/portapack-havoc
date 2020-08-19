@@ -60,6 +60,25 @@ uint32_t Packet::read(const size_t start_bit, const size_t length) const {
 	return field_.read(start_bit, length);
 }
 
+std::string Packet::raw_content() const {
+	std::string result;
+	//uint32_t chars = packet_.size() / 8;
+	uint32_t chars = 32;
+	result.reserve(chars);
+
+	uint8_t value;
+	for (uint8_t i=0; i < chars; i++) {	//euquiq: Serial ID is 8 bytes long, each byte a char
+		value = 0;
+		for (uint8_t b = 0; b < 8; b++) 
+			value = (value << 1) | packet_[(i * 8) + b];	//get the byte from the bits collection
+
+		if (value > 31 && value < 127) 
+			result += (char)value; //Maybe there are ids with less than 8 bytes and this is not OK.
+	
+	}
+	return result;
+}
+
 /*std::string Packet::text(
 	const size_t start_bit,
 	const size_t character_count

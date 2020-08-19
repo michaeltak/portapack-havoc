@@ -79,15 +79,15 @@ bool config_login();
 uint32_t config_backlight_timer();
 bool config_backbutton();
 bool config_speaker();
+float_t touch_threshold();
 
-uint32_t touchsensible();
-void set_touchsensible(const uint32_t new_value);
 
 void set_config_splash(bool v);
 void set_config_login(bool v);
 void set_config_backlight_timer(uint32_t i);
 void set_config_backbutton(bool v);                         //Show / hide ".." back button in menues
 void set_config_speaker(bool v);                            //h1 may have a speaker connected
+void set_touch_threshold(const float_t new_value);
 
 //uint8_t ui_config_textentry();
 //void set_config_textentry(uint8_t new_value);

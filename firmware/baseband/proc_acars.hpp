@@ -46,10 +46,20 @@
 #include "baseband_packet.hpp"
 
 #include "message.hpp"
+#include "portapack_shared_memory.hpp"
 
 #include <cstdint>
 #include <cstddef>
 #include <bitset>
+
+// ACARS (euquiq here):
+// Parameters: Pre-key Bitsync Charsync SOH Mode Address Ack/Nak Label BlockID STX TEXT ETX BCS BCSSuffix
+// # of Bytes:		16		2		2	  7	  1		7		1		2		1	 1	220	  1	  2		1
+//Description: 			Identification 														  END
+//				|	and synchronisation  |			TEXT							      |  FRAME
+//						 parameters															identification
+//
+// 
 
 // AIS:
 // IN: 2457600/8/8 = 38400
@@ -116,11 +126,11 @@ private:
 	dsp::decimate::FIRC16xR16x32Decim8 decim_1 { };
 	dsp::matched_filter::MatchedFilter mf { rect_taps_38k4_4k8_1t_2k4_p, 8 };
 
-	clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
-		4800, 2400, { 0.0555f },
-		[this](const float symbol) { this->consume_symbol(symbol); }
-	};
-	symbol_coding::ACARSDecoder acars_decode { };
+	// clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
+	// 	4800, 2400, { 0.0555f },
+	// 	[this](const float symbol) { this->consume_symbol(symbol); }
+	// };
+	//symbol_coding::ACARSDecoder acars_decode { };
 	/*PacketBuilder<BitPattern, NeverMatch, FixedLength> packet_builder {
 		{ 0b011010000110100010000000, 24, 1 },	// SYN, SYN, SOH
 		{ },
@@ -129,10 +139,31 @@ private:
 			this->payload_handler(packet);
 		}
 	};*/
-	baseband::Packet packet { };
 
-	void consume_symbol(const float symbol);
-	void payload_handler(const baseband::Packet& packet);
+
+	clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
+		4800, 2400, { 0.0555f },
+		[this](const float raw_symbol) { 
+			const uint_fast8_t sliced_symbol = (raw_symbol >= 0.0f) ? 1 : 0;
+			this->packet_builder.execute(sliced_symbol);
+		}
+	};
+	PacketBuilder<BitPattern, NeverMatch, FixedLength> packet_builder {
+		//{ 0b1010101100101010, 16, 1 },	// Two char (+,*) bitsync 7bits + parity
+		//{ 0b011010000110100010000000, 24, 1 },	// SYN, SYN, SOH
+		{ 0b1101010101010100011010000110100010000000, 40, 1 },	// + * SYN, SYN, SOH 7bits + parity, back to front
+		{ },
+		{ 2048 },	//256 bytes = 2048bits
+		[this](const baseband::Packet& packet) {
+			const ACARSPacketMessage message { packet };
+			shared_memory.application_queue.push(message);
+		}
+	};
+
+	//baseband::Packet packet { };
+
+	//void consume_symbol(const float symbol);
+	//void payload_handler(const baseband::Packet& packet);
 };
 
 #endif/*__PROC_ACARS_H__*/
