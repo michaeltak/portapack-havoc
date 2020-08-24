@@ -64,7 +64,6 @@ private:
 	void update_vumeter();
 	void do_timing();
 	void set_tx(bool enable);
-	void on_tuning_frequency_changed(rf::Frequency f);
 	void on_tx_progress(const bool done);
 	void configure_baseband();
 
@@ -83,17 +82,33 @@ private:
 	uint32_t decay_ms { };
 	uint32_t attack_timer { 0 };
 	uint32_t decay_timer { 0 };
+
+	int32_t tx_gain { 47 };
+	bool tx_amp { true };
+	rf::Frequency tx_frequency { 0 };
+ 	rf::Frequency rx_frequency { 0 };
+	int32_t rx_lna { 32 };
+	int32_t rx_vga { 32 };
+ 	bool rx_amp { false };
+
+	//bool button_touch { false };
 	
 	Labels labels {
 		{ { 3 * 8, 1 * 8 }, "MIC. GAIN:", Color::light_grey() },
-		{ { 3 * 8, 3 * 8 }, "FREQUENCY:", Color::light_grey() },
-		{ { 3 * 8, 5 * 8 }, "BANDWIDTH:   kHz", Color::light_grey() },
-		{ { 7 * 8, 11 * 8 }, "LEVEL:   /255", Color::light_grey() },
-		{ { 6 * 8, 13 * 8 }, "ATTACK:   ms", Color::light_grey() },
-		{ { 7 * 8, 15 * 8 }, "DECAY:    ms", Color::light_grey() },
-		{ { 4 * 8, 18 * 8 }, "TONE KEY:", Color::light_grey() },
-		{ { 9 * 8, 30 * 8 }, "VOL:", Color::light_grey() },
-		{ { 5 * 8, 32 * 8 }, "SQUELCH:", Color::light_grey() }
+		{ { 3 * 8, 3 * 8 }, "TX FREQ:", Color::light_grey() },
+		{ { 21 * 8, 3 * 8 }, "BW:   kHz", Color::light_grey() },
+		{ { 3 * 8, 5 * 8 }, "TX GAIN:", Color::light_grey() },
+ 		{ {14 * 8, 5 * 8 }, "AMP:", Color::light_grey() },
+ 		{ { 7 * 8, 11 * 8 }, "LEVEL:   /255", Color::light_grey() },
+ 		{ { 6 * 8, 13 * 8 }, "ATTACK:   ms", Color::light_grey() },
+ 		{ { 7 * 8, 15 * 8 }, "DECAY:    ms", Color::light_grey() },
+ 		{ { 4 * 8, ( 18 * 8 ) - 2 }, "TONE KEY:", Color::light_grey() },
+		{ { 7 * 8, 29 * 8 }, "RX FREQ:", Color::light_grey() },
+		{ { 7 * 8, 31 * 8 }, "VOL:", Color::light_grey() },
+		{ { 14 * 8, 31 * 8 }, "SQUELCH:", Color::light_grey() },
+		{ { 5 * 8, 33 * 8 }, "LNA:", Color::light_grey()},
+ 		{ {12 * 8, 33 * 8 }, "VGA:", Color::light_grey()},
+ 		{ {19 * 8, 33 * 8 }, "AMP:", Color::light_grey()}
 	};
 	
 	VuMeter vumeter {
@@ -114,16 +129,34 @@ private:
 	};
 	
 	FrequencyField field_frequency {
-		{ 13 * 8, 3 * 8 },
+		{ 11 * 8, 3 * 8 },
 	};
+
 	NumberField field_bw {
-		{ 13 * 8, 5 * 8 },
+		{ 24 * 8, 3 * 8 },
 		3,
 		{ 0, 150 },
 		1,
 		' '
 	};
-	
+
+	NumberField field_rfgain {
+ 		{ 11 * 8, 5 * 8 },
+ 		2,
+ 		{ 0, 47 },
+ 		1,
+ 		' '
+ 	};
+
+ 	OptionsField option_txamp {
+ 		{ 18 * 8, 5 * 8 },
+ 		4,
+		{
+			{ " OFF", 0 },
+			{ " ON ", 1 },
+		}
+ 	};
+
 	Checkbox check_va {
 		{ 3 * 8, (9 * 8) - 4 },
 		7,
@@ -154,27 +187,31 @@ private:
 	};
 	
 	OptionsField options_tone_key {
-		{ 10 * 8, 20 * 8 },
+		{ 10 * 8, ( 20 * 8 ) - 2 },
 		23,
 		{ }
 	};
 
 	Checkbox check_rogerbeep {
-		{ 3 * 8, 23 * 8 },
+		{ 3 * 8, 22 * 8 },
 		10,
 		"Roger beep",
 		false
 	};
 
 	Checkbox check_rxactive {
-		{ 3 * 8, (27 * 8) + 4 },
+		{ 3 * 8, (27 * 8) - 4},
 		8,
 		"RX audio listening",
 		false
 	};
 
+	FrequencyField field_rxfrequency {
+ 		{ 15 * 8, 29 * 8 },
+ 	};
+
 	NumberField field_volume {
-		{ 13 * 8, 30 * 8 },
+		{ 11 * 8, 31 * 8 },
 		2,
 		{ 0, 99 },
 		1,
@@ -182,18 +219,48 @@ private:
 	};
 	
 	NumberField field_squelch {
-		{ 13 * 8, 32 * 8 },
+		{ 22 * 8, 31 * 8 },
 		2,
 		{ 0, 99 },
 		1,
 		' ',
 	};
 
+		NumberField field_rxlna {
+ 		{ 9 * 8, 33 * 8 },
+ 		2,
+ 		{ 0, 40 },
+ 		8,
+ 		' ',
+ 	};
+
+ 	NumberField field_rxvga {
+ 		{ 16 * 8, 33 * 8 },
+ 		2,
+ 		{ 0, 62 },
+ 		2,
+ 		' ',
+ 	};
+
+ 	OptionsField option_rxamp {
+ 		{ 23 * 8, 33 * 8 },
+ 		4,
+		{
+			{ " OFF", 0 },
+			{ " ON ", 1 },
+		}
+ 	};
+
 	Text text_ptt {
 		{ 7 * 8, 35 * 8, 16 * 8, 16 },
 		"PTT: RIGHT BUTTON"
 	};
 
+ 	// Button tx_button {
+ 	// 	{ 10 * 8, 30 * 8, 10 * 8, 5 * 8 },
+ 	// 	"TX",
+ 	// 	true
+ 	// };
 
 	MessageHandlerRegistration message_handler_lcd_sync {
 		Message::ID::DisplayFrameSync,
