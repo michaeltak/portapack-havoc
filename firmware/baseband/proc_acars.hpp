@@ -20,8 +20,8 @@
  * Boston, MA 02110-1301, USA.
  */
 
-#ifndef __PROC_ACARS_H__
-#define __PROC_ACARS_H__
+// #ifndef __PROC_ACARS_H__
+// #define __PROC_ACARS_H__
 
 #include "baseband_processor.hpp"
 #include "baseband_thread.hpp"
@@ -126,22 +126,23 @@ private:
 	dsp::decimate::FIRC16xR16x32Decim8 decim_1 { };
 	dsp::matched_filter::MatchedFilter mf { rect_taps_38k4_4k8_1t_2k4_p, 8 };
 
-	// clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
-	// 	4800, 2400, { 0.0555f },
-	// 	[this](const float symbol) { this->consume_symbol(symbol); }
-	// };
-	//symbol_coding::ACARSDecoder acars_decode { };
-	/*PacketBuilder<BitPattern, NeverMatch, FixedLength> packet_builder {
+	clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
+		4800, 2400, { 0.0555f },
+		[this](const float symbol) { this->consume_symbol(symbol); }
+	};
+	symbol_coding::ACARSDecoder acars_decode { };
+	PacketBuilder<BitPattern, NeverMatch, FixedLength> packet_builder {
 		{ 0b011010000110100010000000, 24, 1 },	// SYN, SYN, SOH
+		//{ 0b1101010101010100011010000110100010000000, 40, 1 },	// + * SYN, SYN, SOH 7bits + parity, back to front
 		{ },
-		{ 128 },
+		{ 128 },	//256 bytes = 2048bits (was 128!)
 		[this](const baseband::Packet& packet) {
 			this->payload_handler(packet);
 		}
-	};*/
+	};
 
 
-	clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
+/* 	clock_recovery::ClockRecovery<clock_recovery::FixedErrorFilter> clock_recovery {
 		4800, 2400, { 0.0555f },
 		[this](const float raw_symbol) { 
 			const uint_fast8_t sliced_symbol = (raw_symbol >= 0.0f) ? 1 : 0;
@@ -158,12 +159,12 @@ private:
 			const ACARSPacketMessage message { packet };
 			shared_memory.application_queue.push(message);
 		}
-	};
+	}; */
 
 	//baseband::Packet packet { };
 
-	//void consume_symbol(const float symbol);
-	//void payload_handler(const baseband::Packet& packet);
+	void consume_symbol(const float symbol);
+	void payload_handler(const baseband::Packet& packet);
 };
 
-#endif/*__PROC_ACARS_H__*/
+//#endif/*__PROC_ACARS_H__*/
