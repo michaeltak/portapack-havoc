@@ -33,14 +33,14 @@ size_t Packet::length() const {
 }
 
 bool Packet::is_valid() const {
-	return true;	//length_valid() && crc_ok();
+	return true;	//TODO: length_valid() && crc_ok();
 }
 
 Timestamp Packet::received_at() const {
 	return packet_.timestamp();
 }
 
-uint8_t Packet::block_id() const {
+uint8_t Packet::block_id() const { //bit 96: field BLOCK ID single byte which increments with each transmission
 	return field_.read(96, 8);
 }
 
@@ -62,8 +62,8 @@ uint32_t Packet::read(const size_t start_bit, const size_t length) const {
 
 std::string Packet::raw_content() const {
 	std::string result;
-	//uint32_t chars = packet_.size() / 8;
-	uint32_t chars = 32;
+	uint32_t chars = packet_.size() / 8;
+	//uint32_t chars = 32;
 	result.reserve(chars);
 
 	uint8_t value;
@@ -74,7 +74,11 @@ std::string Packet::raw_content() const {
 
 		if (value > 31 && value < 127) 
 			result += (char)value; //Maybe there are ids with less than 8 bytes and this is not OK.
-	
+		else
+		{
+				result +=".";
+		}
+		
 	}
 	return result;
 }

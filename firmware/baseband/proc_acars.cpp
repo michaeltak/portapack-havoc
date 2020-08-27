@@ -51,7 +51,7 @@ void ACARSProcessor::execute(const buffer_c8_t& buffer) {
 	}
 }
 
-void ACARSProcessor::consume_symbol(
+/* void ACARSProcessor::consume_symbol(
 	const float raw_symbol
 ) {
 	const uint_fast8_t sliced_symbol = (raw_symbol >= 0.0f) ? 1 : 0;
@@ -72,7 +72,7 @@ void ACARSProcessor::payload_handler(
 ) {
 	const ACARSPacketMessage message { packet };
 	shared_memory.application_queue.push(message);
-}
+} */
 
 int main() {
 	EventDispatcher event_dispatcher { std::make_unique<ACARSProcessor>() };
