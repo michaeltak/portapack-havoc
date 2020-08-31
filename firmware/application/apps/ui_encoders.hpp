@@ -43,21 +43,20 @@ public:
 	void focus() override;
 	void on_show() override;
 	
-	uint8_t repeat_min();
+	//uint8_t repeat_min();
 	uint32_t samples_per_bit();
 	uint32_t pause_symbols();
-	void generate_frame();
+	void generate_frame(bool is_debruijn, uint32_t debruijn_bits);
 	
 	std::string frame_fragments = "0";
+	const encoder_def_t * encoder_def { };
+	uint8_t bits_per_packet; 	//Euquiq: the number of bits needed from de_bruijn, depends on the encoder's needs
 
 private:
-	//bool abort_scan = false;
-	//uint8_t scan_count;
-	//double scan_progress;
-	//unsigned int scan_index;
+
 	int16_t waveform_buffer[550];
-	const encoder_def_t * encoder_def { };
-	//uint8_t enc_type = 0;
+	
+	uint8_t enc_type = 0;
 
 	void draw_waveform();
 	void on_bitfield();
@@ -121,32 +120,42 @@ private:
 class EncodersScanView : public View {
 public:
 	EncodersScanView(NavigationView& nav, Rect parent_rect);
-	
-	void focus() override;
 
-private:
 	Labels labels {
-		{ { 1 * 8, 1 * 8 }, "Coming soon...", Color::light_grey() }
+		{ { 6 * 8, 0 * 16 }, "Encoder:", Color::light_grey() },
+		{ { 2 * 8, 1 * 16 }, "Word Format:", Color::light_grey() },
+		{ { 1 * 8, 2 * 16 }, "Address bits:", Color::light_grey() },
+		{ { 1 * 8, 3 * 16 }, "AFSK repeats:", Color::light_grey() },
+		{ { 0 * 8, 4 * 16 }, "DeBruijn bits:", Color::light_grey() }
 	};
-	
-	// DEBUG
-	NumberField field_debug {
-		{ 1 * 8, 6 * 8 },
-		2,
-		{ 3, 16 },
-		1,
-		' '
+
+	Text text_debug_encoder {
+		{ 14 * 8, 0 * 16, 16 * 8, 16 },
+		""
 	};
-	
-	// DEBUG
-	Text text_debug {
-		{ 1 * 8, 8 * 8, 24 * 8, 16 },
+
+	Text text_debug_word_format {
+		{ 14 * 8, 1 * 16, 16 * 8, 16 },
+		""
+	};
+
+	Text text_debug_abits {
+		{ 14 * 8, 2 * 16, 2 * 8, 16 },
 		""
 	};
 	
-	// DEBUG
-	Text text_length {
-		{ 1 * 8, 10 * 8, 24 * 8, 16 },
+	Text text_debug_afsk_repeats {
+		{ 14 * 8, 3 * 16, 2 * 8, 16 },
+		""
+	};
+
+	Text text_debug_de_bruijn_bits {
+		{ 14 * 8, 4 * 16, 5 * 8, 16 },
+		""
+	};
+
+	Text text_debug {
+		{ 0 * 8, 7 * 16, 24 * 8, 16 },
 		""
 	};
 };
@@ -160,6 +169,7 @@ public:
 	
 	std::string title() const override { return "OOK transmit"; };
 
+
 private:
 	NavigationView& nav_;
 
@@ -171,36 +181,48 @@ private:
 	
 	tx_modes tx_mode = IDLE;
 	uint8_t repeat_index { 0 };
-	uint8_t repeat_min { 0 };
+	uint32_t scan_count;
+	uint32_t scan_index;
+	double scan_progress;
+	bool abort_scan = false;
+	char str[16];
+
+	uint8_t afsk_repeats;
+	de_bruijn debruijn_seq;
 	
 	void update_progress();
 	void start_tx(const bool scan);
 	void on_tx_progress(const uint32_t progress, const bool done);
 	
-	/*const Style style_address {
+	const Style style_val {
 		.font = font::fixed_8x16,
-		.background = Color::black(),
-		.foreground = Color::red(),
+		.background = Color::green(),
+		.foreground = Color::black(),
 	};
-	const Style style_data {
+	const Style style_cancel {
 		.font = font::fixed_8x16,
-		.background = Color::black(),
-		.foreground = Color::blue(),
-	};*/
+		.background = Color::red(),
+		.foreground = Color::black(),
+	};
 	
-	Rect view_rect = { 0, 4 * 8, 240, 168 };
+	Rect view_rect = { 0, 4 * 8, 240, 154 };
 	
 	EncodersConfigView view_config { nav_, view_rect };
 	EncodersScanView view_scan { nav_, view_rect };
 	
 	TabView tab_view {
 		{ "Config", Color::cyan(), &view_config },
-		{ "Scan", Color::green(), &view_scan },
+		{ "De Bruijn", Color::green(), &view_scan },
 	};
 
 	Text text_status {
 		{ 2 * 8, 13 * 16, 128, 16 },
 		"Ready"
+	};
+
+	Button button_scan {
+		{ 20 * 8, 12 * 16, 64, 28 },
+		"SCAN"
 	};
 	
 	ProgressBar progressbar {
