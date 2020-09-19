@@ -46,6 +46,18 @@ public:
 		Incomplete = 0,
 		OK = 1,
 	};
+	std::string ResultStr[10] = {
+		"Compare",
+		"Read incomplete",
+		"Write incomplete",
+		"Abort",
+		"File Open Read",
+		"File Open Write",
+		"Heap",
+		"Thread",
+		"Incomplete",
+		"OK",
+	};
 
 	std::string ResultStr[10] = {
  		"Compare",

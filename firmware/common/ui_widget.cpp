@@ -409,10 +409,26 @@ void Labels::paint(Painter& painter) {
 
 void LiveDateTime::on_tick_second() {
 	rtcGetTime(&RTCD1, &datetime);
+	text = "";
 	
-	text = to_string_dec_uint(datetime.month(), 2, '0') + "/" + to_string_dec_uint(datetime.day(), 2, '0') + " " +
-			to_string_dec_uint(datetime.hour(), 2, '0') + ":" + to_string_dec_uint(datetime.minute(), 2, '0');
+	if(date_enabled){
+		text = to_string_dec_uint(datetime.month(), 2, '0') + "/" + to_string_dec_uint(datetime.day(), 2, '0') + " ";
+	}
 	
+	text = text + to_string_dec_uint(datetime.hour(), 2, '0') + ":" + to_string_dec_uint(datetime.minute(), 2, '0');
+
+	if(seconds_enabled){
+		text += ":";
+
+		if(init_delay==0)
+			text += to_string_dec_uint(datetime.second(), 2, '0');
+		else
+		{
+			// Placeholder while the seconds are not updated
+			text += "XX";
+			init_delay--;
+		}
+	}
 	set_dirty();
 }
 
@@ -442,6 +458,14 @@ void LiveDateTime::paint(Painter& painter) {
 		s,
 		text
 	);
+}
+
+void LiveDateTime::set_date_enabled(bool new_value){
+	this->date_enabled = new_value;
+}
+
+void LiveDateTime::set_seconds_enabled(bool new_value) {
+	this->seconds_enabled = new_value;
 }
 
 /* BigFrequency **********************************************************/
@@ -625,7 +649,8 @@ void Console::write(std::string message) {
 
 void Console::writeln(std::string message) {
 	write(message);
-	crlf();
+	write("\n");
+	//crlf();
 }
 
 void Console::paint(Painter&) {
@@ -802,9 +827,11 @@ bool Checkbox::on_touch(const TouchEvent event) {
 
 Button::Button(
 	Rect parent_rect,
-	std::string text
+	std::string text,
+	bool instant_exec
 ) : Widget { parent_rect },
-	text_ { text }
+	text_ { text },
+	instant_exec_ { instant_exec }
 {
 	set_focusable(true);
 }
@@ -874,14 +901,23 @@ bool Button::on_touch(const TouchEvent event) {
 	case TouchEvent::Type::Start:
 		set_highlighted(true);
 		set_dirty();
+		if( on_touch_press) {
+			on_touch_press(*this);
+		}
+		if( on_select && instant_exec_ ) {
+			on_select(*this);
+		}
 		return true;
 
 
 	case TouchEvent::Type::End:
 		set_highlighted(false);
 		set_dirty();
-		if( on_select ) {
+		if( on_select && !instant_exec_ ) {
 			on_select(*this);
+		}
+		if( on_touch_release) {
+			on_touch_release(*this);
 		}
 		return true;
 
